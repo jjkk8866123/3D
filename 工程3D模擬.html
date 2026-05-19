@@ -749,7 +749,7 @@ function buildDitch() {
         m.position.set(xp, outerH + slabT/2, gz);
         modelGrp.add(m); addEdges(g, m, 0.4);
       });
-      buildGrating(gW, gL, outerH, str('ditch-grate-type'), c2, gz);
+      buildGrating(gW, gL, outerH + slabT, str('ditch-grate-type'), c2, gz);
     }
   }
 
@@ -804,7 +804,7 @@ function buildDitch() {
 // ═══════════════════════════════════════════════
 //  格柵產生器（供 buildDitch 呼叫）
 // ═══════════════════════════════════════════════
-// grateW/grateL = 格柵面板尺寸（寬×長），zPos = 格柵中心 Z 座標
+// grateW/grateL = 格柵面板尺寸（寬×長），topY = 格柵頂面齊平高度，zPos = 格柵中心 Z 座標
 function buildGrating(grateW, grateL, topY, grateType, colorHex, zPos = 0) {
   const specs = {
     std30: { mainSp: 0.030, crossSp: 0.050, barH: 0.025, barT: 0.003, crossT: 0.005 },
@@ -817,17 +817,20 @@ function buildGrating(grateW, grateL, topY, grateType, colorHex, zPos = 0) {
   });
   const dummy = new THREE.Object3D();
 
-  // ── 邊框（前後端板 + 左右側邊）──
+  // topY = 格柵頂面（與蓋板頂面齊平），底部 = topY - fH
   const fT = 0.006, fH = s.barH + 0.004;
+  const baseY = topY - fH;  // 格柵底部 Y
+
+  // ── 邊框（前後端板 + 左右側邊）──
   const endGeo  = new THREE.BoxGeometry(grateW, fH, fT);
   const sideGeo = new THREE.BoxGeometry(fT, fH, grateL);
   [zPos - grateL/2 + fT/2, zPos + grateL/2 - fT/2].forEach(z => {
     const m = new THREE.Mesh(endGeo, gMat); m.castShadow = true;
-    m.position.set(0, topY + fH/2, z); modelGrp.add(m);
+    m.position.set(0, baseY + fH/2, z); modelGrp.add(m);
   });
   [-grateW/2 + fT/2, grateW/2 - fT/2].forEach(x => {
     const m = new THREE.Mesh(sideGeo, gMat); m.castShadow = true;
-    m.position.set(x, topY + fH/2, zPos); modelGrp.add(m);
+    m.position.set(x, baseY + fH/2, zPos); modelGrp.add(m);
   });
 
   // ── 主筋（扁鋼）：沿 Z 方向，橫向排列於 X ──
@@ -838,7 +841,7 @@ function buildGrating(grateW, grateL, topY, grateType, colorHex, zPos = 0) {
     const mainIM  = new THREE.InstancedMesh(mainGeo, gMat, xPositions.length);
     mainIM.castShadow = true;
     xPositions.forEach((x, i) => {
-      dummy.position.set(x, topY + s.barH/2, zPos);
+      dummy.position.set(x, baseY + s.barH/2, zPos);
       dummy.updateMatrix(); mainIM.setMatrixAt(i, dummy.matrix);
     });
     mainIM.instanceMatrix.needsUpdate = true;
@@ -853,7 +856,7 @@ function buildGrating(grateW, grateL, topY, grateType, colorHex, zPos = 0) {
     const crossGeo = new THREE.BoxGeometry(grateW - 2*fT, crossH, s.crossT);
     const crossIM  = new THREE.InstancedMesh(crossGeo, gMat, zCrossPositions.length);
     zCrossPositions.forEach((z, i) => {
-      dummy.position.set(0, topY + crossH/2, z);
+      dummy.position.set(0, baseY + crossH/2, z);
       dummy.updateMatrix(); crossIM.setMatrixAt(i, dummy.matrix);
     });
     crossIM.instanceMatrix.needsUpdate = true;
