@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程 3D 模擬系統</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; display: flex; height: 100vh; overflow: hidden; background: #111827; color: #e5e7eb; }
+
+/* ── 側邊欄 ── */
+#sidebar {
+  width: 300px; min-width: 300px;
+  background: #1f2937;
+  border-right: 1px solid #374151;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+#sidebar-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #374151;
+  flex-shrink: 0;
+}
+#sidebar-header h1 { font-size: 15px; color: #60a5fa; font-weight: 700; letter-spacing: 1px; }
+#sidebar-header p  { font-size: 11px; color: #6b7280; margin-top: 2px; }
+#sidebar-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
+#sidebar-body::-webkit-scrollbar { width: 4px; }
+#sidebar-body::-webkit-scrollbar-track { background: #1f2937; }
+#sidebar-body::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+
+/* ── 區塊標題 ── */
+.sec { font-size: 11px; font-weight: 700; color: #60a5fa; letter-spacing: 1px;
+  margin: 14px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #374151; text-transform: uppercase; }
+.sec:first-child { margin-top: 0; }
+
+/* ── 表單元件 ── */
+.fg { margin-bottom: 8px; }
+.fg label { display: block; font-size: 11px; color: #9ca3af; margin-bottom: 3px; }
+input[type="number"], select {
+  width: 100%; padding: 5px 8px;
+  background: #111827; border: 1px solid #374151; border-radius: 4px;
+  color: #e5e7eb; font-size: 12px; font-family: inherit;
+  transition: border-color .15s;
+}
+input[type="number"]:focus, select:focus { outline: none; border-color: #60a5fa; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+
+/* ── 顏色列 ── */
+.color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.color-swatch { width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(255,255,255,.15); flex-shrink: 0; }
+.color-row span { font-size: 11px; color: #9ca3af; flex: 1; }
+input[type="color"] { width: 32px; height: 22px; padding: 0 2px; background: #111827; border: 1px solid #374151; border-radius: 3px; cursor: pointer; }
+
+/* ── 物件類型按鈕 ── */
+.type-btns { display: flex; gap: 6px; margin-bottom: 12px; }
+.type-btn {
+  flex: 1; padding: 7px 4px; font-size: 12px; font-family: inherit;
+  background: #111827; border: 1px solid #374151; border-radius: 5px;
+  color: #9ca3af; cursor: pointer; transition: all .15s;
+}
+.type-btn:hover { border-color: #60a5fa; color: #60a5fa; }
+.type-btn.active { background: #1d4ed8; border-color: #3b82f6; color: #fff; font-weight: 700; }
+
+/* ── 按鈕 ── */
+.btn { padding: 7px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all .15s; }
+.btn-generate { background: #2563eb; color: #fff; font-weight: 700; width: 100%; padding: 9px; margin-bottom: 8px; font-size: 13px; }
+.btn-generate:hover { background: #1d4ed8; }
+.btn-sm { background: #374151; color: #d1d5db; border: 1px solid #4b5563; }
+.btn-sm:hover { background: #4b5563; }
+.btn-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.btn-row .btn { flex: 1; }
+
+/* ── 進階設定 ── */
+.adv-toggle { background: none; border: none; color: #60a5fa; font-size: 11px; cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px; font-family: inherit; margin-bottom: 4px; }
+.adv-toggle:hover { color: #93c5fd; }
+#adv-body { background: #111827; border: 1px solid #374151; border-radius: 5px; padding: 10px; margin-bottom: 10px; display: none; }
+
+/* ── 分隔線 ── */
+hr { border: none; border-top: 1px solid #374151; margin: 10px 0; }
+
+/* ── 提示文字 ── */
+.hint { font-size: 10px; color: #6b7280; text-align: center; }
+
+/* ── 視埠 ── */
+#viewport { flex: 1; position: relative; overflow: hidden; }
+#viewport canvas { display: block; }
+
+/* ── 視埠 UI 疊層 ── */
+#view-btns {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; flex-direction: column; gap: 4px; z-index: 10;
+}
+.vbtn {
+  padding: 5px 10px; background: rgba(31,41,55,.88); border: 1px solid #374151;
+  color: #9ca3af; font-size: 11px; border-radius: 4px; cursor: pointer; font-family: inherit;
+  transition: all .15s; white-space: nowrap;
+}
+.vbtn:hover { border-color: #60a5fa; color: #60a5fa; }
+.vbtn.export { margin-top: 4px; border-color: #2563eb; color: #60a5fa; }
+
+#legend-box {
+  position: absolute; bottom: 12px; left: 12px;
+  background: rgba(31,41,55,.92); border: 1px solid #374151;
+  border-radius: 6px; padding: 10px 12px; z-index: 10; min-width: 150px;
+}
+#legend-box h3 { font-size: 11px; color: #60a5fa; margin-bottom: 7px; font-weight: 700; }
+.leg-item { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.leg-item:last-child { margin-bottom: 0; }
+.leg-dot { width: 14px; height: 14px; border-radius: 2px; border: 1px solid rgba(255,255,255,.1); flex-shrink: 0; }
+.leg-item span { font-size: 11px; color: #d1d5db; }
+
+#info-bar {
+  position: absolute; bottom: 12px; right: 12px;
+  background: rgba(31,41,55,.8); border: 1px solid #374151;
+  border-radius: 5px; padding: 6px 10px; font-size: 10px; color: #6b7280;
+  text-align: right; z-index: 10; line-height: 1.6;
+}
+
+/* ── CSS2D 標示 ── */
+.dim-label {
+  background: rgba(37,99,235,.18); color: #93c5fd;
+  padding: 2px 6px; border-radius: 3px; font-size: 10px;
+  border: 1px solid rgba(96,165,250,.35); white-space: nowrap;
+  font-family: 'Microsoft JhengHei', sans-serif; pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ 側邊欄 ══════════════ -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>工程 3D 模擬系統</h1>
+    <p>單一物件模擬  ｜  公制單位 (m)</p>
+  </div>
+  <div id="sidebar-body">
+
+    <!-- 物件類型 -->
+    <div class="sec">物件類型</div>
+    <div class="type-btns">
+      <button class="type-btn active" id="tbtn-road"     onclick="setType('road')">道路</button>
+      <button class="type-btn"        id="tbtn-ditch"    onclick="setType('ditch')">水溝</button>
+      <button class="type-btn"        id="tbtn-sidewalk" onclick="setType('sidewalk')">人行道</button>
+    </div>
+
+    <!-- ── 道路面板 ── -->
+    <div id="panel-road">
+      <div class="sec">鋪面類型</div>
+      <div class="fg">
+        <select id="road-pave" onchange="onRoadPaveChange()">
+          <option value="flex">柔性鋪面（瀝青混凝土）</option>
+          <option value="rigid">剛性鋪面（混凝土）</option>
+        </select>
+      </div>
+
+      <div class="sec">尺寸 (m)</div>
+      <div class="g2">
+        <div class="fg"><label>路面寬 W</label><input type="number" id="road-W" value="7" min="1" step="0.5"></div>
+        <div class="fg"><label>長度 L</label><input type="number" id="road-L" value="10" min="1" step="1"></div>
+      </div>
+      <div class="g3">
+        <div class="fg"><label id="road-t1-lbl">面層厚</label><input type="number" id="road-t1" value="0.05" min="0.01" step="0.01"></div>
+        <div class="fg"><label>底層厚</label><input type="number" id="road-t2" value="0.15" min="0.05" step="0.01"></div>
+        <div class="fg"><label>路基厚</label><input type="number" id="road-t3" value="0.30" min="0.10" step="0.01"></div>
+      </div>
+      <div class="fg">
+        <label>路拱橫坡 (%)  <span style="color:#6b7280;font-size:10px;">規範預設 2%</span></label>
+        <input type="number" id="road-crown" value="2" min="0" max="5" step="0.5">
+      </div>
+
+      <div class="sec">顏色</div>
+      <div class="color-row">
+        <div class="color-swatch" id="sw-r1" style="background:#2d2d2d"></div>
+        <span id="road-c1-name">面層（瀝青）</span>
+        <input type="color" id="road-c1" value="#2d2d2d" oninput="syncSwatch('sw-r1',this.value)">
+      </div>
+      <div class="color-row">
+        <div class="color-swatch" id="sw-r2" style="background:#7c5a1e"></div>
+        <span>底層（級配粒料）</span>
+        <input type="color" id="road-c2" value="#7c5a1e" oninput="syncSwatch('sw-r2',this.value)">
+      </div>
+      <div class="color-row">
+        <div class="color-swatch" id="sw-r3" style="background:#6b7280"></div>
+        <span>路基</span>
+        <input type="color" id="road-c3" value="#6b7280" oninput="syncSwatch('sw-r3',this.value)">
+      </div>
+    </div>
+
+    <!-- ── 水溝面板 ── -->
+    <div id="panel-ditch" style="display:none">
+      <div class="sec">斷面型式</div>
+      <div class="fg">
+        <select id="ditch-type" onchange="onDitchTypeChange()">
+          <option value="rect">矩形溝</option>
+          <option value="trap">梯形溝</option>
+          <option value="utype">U 型溝</option>
+          <option value="ltype">L 型溝（側溝）</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>頂蓋型式</label>
+        <select id="ditch-cover" onchange="onDitchCoverChange()">
+          <option value="no">無蓋（開放式）</option>
+          <option value="slab">溝頂板（混凝土蓋板）</option>
+          <option value="grate">格柵（鋼製格柵蓋）</option>
+        </select>
+      </div>
+      <!-- 格柵子選單 -->
+      <div id="ditch-grate-opts" style="display:none">
+        <div class="fg">
+          <label>格柵型式</label>
+          <select id="ditch-grate-type" onchange="onGrateTypeChange()">
+            <option value="std30">一般型（主筋間距 30 mm）</option>
+            <option value="std40">一般型（主筋間距 40 mm）</option>
+            <option value="fine">細目型（主筋間距 12.5 mm）</option>
+          </select>
+        </div>
+        <div id="grate-spec-note" style="font-size:10px;color:#6b7280;padding:2px 2px 8px;line-height:1.6;">
+          扁鋼 25×3 mm　主筋間距 30 mm　橫筋間距 50 mm
+        </div>
+      </div>
+
+      <div class="sec">尺寸 (m)</div>
+      <div class="g2">
+        <div class="fg"><label id="ditch-bw-lbl">內寬 B</label><input type="number" id="ditch-bw" value="0.60" min="0.10" step="0.05"></div>
+        <div class="fg"><label>深度 H</label><input type="number" id="ditch-H" value="0.50" min="0.10" step="0.05"></div>
+      </div>
+      <div class="g2" id="ditch-tw-row" style="display:none">
+        <div class="fg"><label>頂寬 T</label><input type="number" id="ditch-tw" value="0.80" min="0.10" step="0.05"></div>
+        <div class="fg"><label>壁厚 t</label><input type="number" id="ditch-wall" value="0.10" min="0.05" step="0.01"></div>
+      </div>
+      <div class="g2" id="ditch-wall-row">
+        <div class="fg"><label>壁厚 t</label><input type="number" id="ditch-wall2" value="0.10" min="0.05" step="0.01"></div>
+        <div class="fg"><label>長度 L</label><input type="number" id="ditch-L" value="10" min="1" step="1"></div>
+      </div>
+
+      <div class="sec">顏色</div>
+      <div class="color-row">
+        <div class="color-swatch" id="sw-d1" style="background:#9ca3af"></div>
+        <span>溝體（混凝土）</span>
+        <input type="color" id="ditch-c1" value="#9ca3af" oninput="syncSwatch('sw-d1',this.value)">
+      </div>
+      <div class="color-row" id="ditch-cover-row" style="display:none">
+        <div class="color-swatch" id="sw-d2" style="background:#6b7280"></div>
+        <span id="ditch-cover-clabel">頂蓋</span>
+        <input type="color" id="ditch-c2" value="#6b7280" oninput="syncSwatch('sw-d2',this.value)">
+      </div>
+    </div>
+
+    <!-- ── 人行道面板 ── -->
+    <div id="panel-sidewalk" style="display:none">
+      <div class="sec">鋪面材質</div>
+      <div class="fg">
+        <select id="sw-mat" onchange="onSwMatChange()">
+          <option value="brick_hp">高壓混凝土磚</option>
+          <option value="brick_tw">透水磚</option>
+          <option value="stamped">壓花混凝土（壓模）</option>
+          <option value="spray">噴花（噴漿）</option>
+          <option value="washed">洗石子</option>
+          <option value="chiseled">斬石子</option>
+          <option value="stone">石板（花崗岩）</option>
+          <option value="asphalt">透水瀝青</option>
+        </select>
+      </div>
+
+      <div class="sec">尺寸 (m)</div>
+      <div class="g2">
+        <div class="fg"><label>寬度 W  <span style="color:#6b7280;font-size:10px;">min 1.5</span></label><input type="number" id="sw-W" value="2.0" min="1.5" step="0.5"></div>
+        <div class="fg"><label>長度 L</label><input type="number" id="sw-L" value="10" min="1" step="1"></div>
+      </div>
+      <div class="g3">
+        <div class="fg"><label id="sw-t1-lbl">面層厚</label><input type="number" id="sw-t1" value="0.06" min="0.02" step="0.01"></div>
+        <div class="fg"><label>底層厚</label><input type="number" id="sw-t2" value="0.15" min="0.05" step="0.01"></div>
+        <div class="fg"><label>路基厚</label><input type="number" id="sw-t3" value="0.20" min="0.10" step="0.01"></div>
+      </div>
+      <div class="fg">
+        <label>橫向排水坡 (%)  <span style="color:#6b7280;font-size:10px;">規範 1.5%～3%，預設 2%</span></label>
+        <input type="number" id="sw-slope" value="2" min="1" max="5" step="0.5">
+      </div>
+
+      <div class="sec">顏色</div>
+      <div class="color-row">
+        <div class="color-swatch" id="sw-s1" style="background:#e57373"></div>
+        <span id="sw-c1-name">面層（透水磚）</span>
+        <input type="color" id="sw-c1" value="#e57373" oninput="syncSwatch('sw-s1',this.value)">
+      </div>
+      <div class="color-row">
+        <div class="color-swatch" id="sw-s2" style="background:#78634a"></div>
+        <span>底層（砂漿／級配）</span>
+        <input type="color" id="sw-c2" value="#78634a" oninput="syncSwatch('sw-s2',this.value)">
+      </div>
+      <div class="color-row">
+        <div class="color-swatch" id="sw-s3" style="background:#6b7280"></div>
+        <span>路基</span>
+        <input type="color" id="sw-c3" value="#6b7280" oninput="syncSwatch('sw-s3',this.value)">
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 進階設定 -->
+    <button class="adv-toggle" onclick="toggleAdv()" id="adv-toggle-btn">
+      <span id="adv-arrow">▶</span> 進階設定（座標定位）
+    </button>
+    <div id="adv-body">
+      <div class="g2">
+        <div class="fg"><label>X 座標 (m)</label><input type="number" id="adv-x" value="0" step="0.1"></div>
+        <div class="fg"><label>Y 座標 (m)</label><input type="number" id="adv-y" value="0" step="0.1"></div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label>Z 座標 (m)</label><input type="number" id="adv-z" value="0" step="0.1"></div>
+        <div class="fg"><label>方位角 (°)</label><input type="number" id="adv-angle" value="0" min="0" max="359" step="1"></div>
+      </div>
+      <div class="fg"><label>縱坡坡度 (%)  <span style="color:#6b7280;font-size:10px;">水溝洩水坡度請填此欄</span></label><input type="number" id="adv-grad" value="0" min="-15" max="15" step="0.1"></div>
+    </div>
+
+    <!-- 體積計算 -->
+    <div id="vol-section" style="display:none">
+      <div class="sec">體積計算</div>
+      <div id="vol-table"></div>
+    </div>
+
+    <!-- 操作按鈕 -->
+    <button class="btn btn-generate" onclick="generate()">▶ 產 生 3D 模 型</button>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="doReset()">重置</button>
+      <button class="btn btn-sm" onclick="doSave()">儲存設定</button>
+      <button class="btn btn-sm" onclick="document.getElementById('file-load').click()">載入設定</button>
+    </div>
+    <input type="file" id="file-load" accept=".json" style="display:none" onchange="doLoad(event)">
+    <hr>
+    <p class="hint">左鍵旋轉　右鍵平移　滾輪縮放</p>
+  </div>
+</div>
+
+<!-- ══════════════ 3D 視埠 ══════════════ -->
+<div id="viewport">
+  <div id="view-btns">
+    <button class="vbtn" onclick="setView('iso')">等角視圖</button>
+    <button class="vbtn" onclick="setView('top')">俯視圖</button>
+    <button class="vbtn" onclick="setView('front')">正視圖</button>
+    <button class="vbtn" onclick="setView('side')">側視圖</button>
+    <button class="vbtn export" onclick="doExport()">匯出截圖 PNG</button>
+  </div>
+  <div id="legend-box">
+    <h3>圖例說明</h3>
+    <div id="legend-items"><span style="font-size:11px;color:#6b7280;">尚未產生模型</span></div>
+  </div>
+  <div id="info-bar">
+    <div id="info-text">—</div>
+  </div>
+</div>
+
+<!-- ══════════════ Three.js ══════════════ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls }   from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ═══════════════════════════════════════════════
+//  場景初始化
+// ═══════════════════════════════════════════════
+const vp = document.getElementById('viewport');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+vp.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+vp.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111827);
+scene.fog = new THREE.Fog(0x111827, 80, 200);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 500);
+camera.position.set(12, 9, 18);
+camera.lookAt(0, 0, 0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 0.5;
+controls.maxDistance = 200;
+
+// 燈光
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const sun = new THREE.DirectionalLight(0xfff8f0, 0.9);
+sun.position.set(15, 25, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 0.1;
+sun.shadow.camera.far = 200;
+sun.shadow.camera.left = -50; sun.shadow.camera.right = 50;
+sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xc7d4ff, 0.3);
+fill.position.set(-10, 5, -10);
+scene.add(fill);
+
+// 網格地板
+const grid = new THREE.GridHelper(100, 100, 0x1f2d3d, 0x1a2535);
+scene.add(grid);
+
+// 座標軸輔助
+const axesHelper = new THREE.AxesHelper(3);
+scene.add(axesHelper);
+
+// 模型群組
+let modelGrp = new THREE.Group();
+scene.add(modelGrp);
+
+// 尺寸標示群組
+let labelGrp = new THREE.Group();
+scene.add(labelGrp);
+
+// ── RWD resize ──
+function onResize() {
+  const w = vp.clientWidth, h = vp.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+// ── Animate ──
+(function loop() {
+  requestAnimationFrame(loop);
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+})();
+
+// ═══════════════════════════════════════════════
+//  工具函式
+// ═══════════════════════════════════════════════
+function hex2color(hex) {
+  return new THREE.Color(parseInt(hex.replace('#',''), 16));
+}
+
+function mat(color, roughness=0.8, metalness=0.05) {
+  return new THREE.MeshStandardMaterial({
+    color: hex2color(color), roughness, metalness, side: THREE.DoubleSide
+  });
+}
+
+function addEdges(geo, parent, opacity=0.25) {
+  const edges = new THREE.EdgesGeometry(geo, 15);
+  const line = new THREE.LineSegments(edges,
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity }));
+  parent.add(line);
+}
+
+function clearScene() {
+  // 清除模型
+  modelGrp.clear();
+  // 清除標示
+  labelGrp.clear();
+}
+
+function addLabel(text, pos) {
+  const div = document.createElement('div');
+  div.className = 'dim-label';
+  div.textContent = text;
+  const obj = new CSS2DObject(div);
+  obj.position.copy(pos);
+  labelGrp.add(obj);
+}
+
+function addDimLine(p1, p2) {
+  const pts = [new THREE.Vector3(...p1), new THREE.Vector3(...p2)];
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const line = new THREE.Line(geo,
+    new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.5 }));
+  labelGrp.add(line);
+}
+
+function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function str(id) { return document.getElementById(id).value; }
+
+function focusOn(cx, cy, cz, size) {
+  const d = size * 2.2;
+  controls.target.set(cx, cy, cz);
+  camera.position.set(cx + d*0.7, cy + d*0.6, cz + d);
+  camera.lookAt(cx, cy, cz);
+  controls.update();
+}
+
+function applyAdvanced() {
+  const x = val('adv-x'), y = val('adv-y'), z = val('adv-z');
+  const ang = val('adv-angle') * Math.PI / 180;
+  const grad = val('adv-grad');
+  modelGrp.position.set(x, y, z);
+  modelGrp.rotation.set(-Math.atan(grad/100), -ang, 0);
+  labelGrp.position.copy(modelGrp.position);
+  labelGrp.rotation.copy(modelGrp.rotation);
+}
+
+function updateInfo(lines) {
+  document.getElementById('info-text').innerHTML = lines.join('<br>');
+}
+
+function setLegend(items) {
+  document.getElementById('legend-items').innerHTML = items.map(it =>
+    `<div class="leg-item"><div class="leg-dot" style="background:${it.c}"></div><span>${it.n}</span></div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  道路產生器
+// ═══════════════════════════════════════════════
+function buildRoad() {
+  const W  = val('road-W'),  L  = val('road-L');
+  const t1 = val('road-t1'), t2 = val('road-t2'), t3 = val('road-t3');
+  const crown = val('road-crown') / 100;   // 橫坡百分比 → 比值
+  const c1 = str('road-c1'), c2 = str('road-c2'), c3 = str('road-c3');
+  const pave = str('road-pave');
+
+  const crownH = (W / 2) * crown;           // 中心相對邊緣的高度差
+  const baseY  = t3 + t2;                   // 面層底部的 Y 高度
+  const totalH = t3 + t2 + t1 + crownH;
+
+  // ── 路基 ──
+  const g3 = new THREE.BoxGeometry(W, t3, L);
+  const m3 = new THREE.Mesh(g3, mat(c3, 0.9));
+  m3.position.y = t3 / 2;
+  m3.castShadow = true; m3.receiveShadow = true;
+  modelGrp.add(m3);
+  addEdges(g3, m3);
+
+  // ── 底層 ──
+  const g2 = new THREE.BoxGeometry(W, t2, L);
+  const m2 = new THREE.Mesh(g2, mat(c2, 0.85));
+  m2.position.y = t3 + t2 / 2;
+  m2.castShadow = true; m2.receiveShadow = true;
+  modelGrp.add(m2);
+  addEdges(g2, m2);
+
+  // ── 面層（路拱斷面，左右兩半）──
+  // 斷面 shape 定義在 XY 平面，Z 方向擠出長度 L
+  // 左半: (-W/2, 0) → (0, crownH) → (0, crownH-t1) → (-W/2, -t1)
+  const leftShape = new THREE.Shape([
+    new THREE.Vector2(-W/2,  0),
+    new THREE.Vector2(0,     crownH),
+    new THREE.Vector2(0,     crownH - t1),
+    new THREE.Vector2(-W/2, -t1),
+  ]);
+  const rightShape = new THREE.Shape([
+    new THREE.Vector2(0,    crownH),
+    new THREE.Vector2(W/2,  0),
+    new THREE.Vector2(W/2, -t1),
+    new THREE.Vector2(0,   crownH - t1),
+  ]);
+  const extCfg = { depth: L, bevelEnabled: false };
+  const gL = new THREE.ExtrudeGeometry(leftShape,  extCfg);
+  const gR = new THREE.ExtrudeGeometry(rightShape, extCfg);
+
+  [gL, gR].forEach((g, i) => {
+    const m = new THREE.Mesh(g, mat(c1, 0.7, 0.02));
+    m.position.set(0, baseY, -L/2);   // 擠出從 z=0 到 z=L，平移讓中心在原點
+    m.castShadow = true; m.receiveShadow = true;
+    modelGrp.add(m);
+    addEdges(g, m, 0.3);
+    m.position.z = -L/2;             // 再次確認中心
+  });
+
+  // ── 尺寸標示 ──
+  const lx = W/2 + 0.5;
+  addDimLine([0, totalH+0.15, -L/2], [0, totalH+0.15, L/2]);
+  addLabel(`L = ${L} m`, new THREE.Vector3(0, totalH+0.35, 0));
+  addDimLine([-W/2, baseY+crownH+0.1, 0], [W/2, baseY+crownH+0.1, 0]);
+  addLabel(`W = ${W} m`, new THREE.Vector3(0, baseY+crownH+0.3, -L/2-0.4));
+  addLabel(`面層 ${(t1*100).toFixed(0)} cm`, new THREE.Vector3(lx, baseY+t1/2, 0));
+  addLabel(`底層 ${(t2*100).toFixed(0)} cm`, new THREE.Vector3(lx, t3+t2/2, 0));
+  addLabel(`路基 ${(t3*100).toFixed(0)} cm`, new THREE.Vector3(lx, t3/2, 0));
+  addLabel(`路拱 ${val('road-crown')}%`, new THREE.Vector3(0, baseY+crownH+0.55, 0));
+
+  // ── 圖例 ──
+  const l1n = pave === 'rigid' ? '面層（混凝土面版）' : '面層（瀝青混凝土）';
+  setLegend([{ c: c1, n: l1n }, { c: c2, n: '底層（級配粒料）' }, { c: c3, n: '路基' }]);
+  updateInfo([`物件：道路  ｜  ${pave==='rigid'?'剛性':'柔性'}鋪面`, `W=${W} m  L=${L} m`, `總厚 ${((t1+t2+t3)*100).toFixed(0)} cm`]);
+
+  // ── 體積計算 ──
+  showVolume([
+    { n: pave==='rigid' ? '面層（混凝土）' : '面層（瀝青）', v: W * L * t1 },
+    { n: '底層（級配粒料）', v: W * L * t2 },
+    { n: '路基',             v: W * L * t3 },
+  ], W * L);
+
+  applyAdvanced();
+  focusOn(0, totalH/2, 0, Math.max(W, L));
+}
+
+// ═══════════════════════════════════════════════
+//  水溝產生器
+// ═══════════════════════════════════════════════
+function buildDitch() {
+  const type    = str('ditch-type');
+  const coverType = str('ditch-cover');
+  const bW  = val('ditch-bw');
+  const H   = val('ditch-H');
+  const L   = val('ditch-L');
+  const c1  = str('ditch-c1');
+  const c2  = str('ditch-c2');
+  // 壁厚：梯形用 ditch-wall，其他用 ditch-wall2
+  const wall = type === 'trap' ? val('ditch-wall') : val('ditch-wall2');
+  const tW   = type === 'trap' ? val('ditch-tw') : bW;
+
+  let shape, outerW, outerH;
+  const extCfg = { depth: L, bevelEnabled: false };
+
+  if (type === 'rect' || type === 'utype') {
+    // ── 矩形 / U型溝 ──
+    outerW = bW + 2 * wall;
+    outerH = H  + wall;
+
+    shape = new THREE.Shape();
+    shape.moveTo(-outerW/2, 0);
+    shape.lineTo( outerW/2, 0);
+    shape.lineTo( outerW/2, outerH);
+    shape.lineTo(-outerW/2, outerH);
+    shape.closePath();
+
+    const hole = new THREE.Path();
+    hole.moveTo(-bW/2, wall);
+    hole.lineTo( bW/2, wall);
+    hole.lineTo( bW/2, outerH);    // 上方開口
+    hole.lineTo(-bW/2, outerH);
+    hole.closePath();
+    shape.holes.push(hole);
+
+  } else if (type === 'trap') {
+    // ── 梯形溝 ──
+    // 外牆底寬 = bW + 2*wall，外牆頂寬 = tW + 2*wall
+    const oBW = bW + 2 * wall;
+    const oTW = tW + 2 * wall;
+    outerW = oTW;
+    outerH = H + wall;
+
+    shape = new THREE.Shape();
+    shape.moveTo(-oBW/2, 0);
+    shape.lineTo( oBW/2, 0);
+    shape.lineTo( oTW/2, outerH);
+    shape.lineTo(-oTW/2, outerH);
+    shape.closePath();
+
+    const hole = new THREE.Path();
+    hole.moveTo(-bW/2, wall);
+    hole.lineTo( bW/2, wall);
+    hole.lineTo( tW/2, outerH);
+    hole.lineTo(-tW/2, outerH);
+    hole.closePath();
+    shape.holes.push(hole);
+
+  } else {
+    // ── L型溝（側溝）：底版 + 一側立壁 ──
+    outerW = bW + wall;
+    outerH = H + wall;
+
+    shape = new THREE.Shape();
+    shape.moveTo(0,          0);
+    shape.lineTo(outerW,     0);
+    shape.lineTo(outerW,     outerH);
+    shape.lineTo(outerW-wall, outerH);
+    shape.lineTo(outerW-wall, wall);
+    shape.lineTo(0,          wall);
+    shape.closePath();
+    // L型無完整圍住，不加 hole
+  }
+
+  const geo  = new THREE.ExtrudeGeometry(shape, extCfg);
+  const mesh = new THREE.Mesh(geo, mat(c1, 0.75));
+  // 擠出沿 +Z，平移讓中心在 z=0
+  mesh.position.set(type === 'ltype' ? -outerW/2 : 0, 0, -L/2);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  modelGrp.add(mesh);
+  addEdges(geo, mesh, 0.35);
+
+  // ── 頂蓋 ──
+  const coverW = outerW + 0.04;
+  if (coverType === 'slab') {
+    // 混凝土溝頂板 10 cm
+    const slabT = 0.10;
+    const gSlab = new THREE.BoxGeometry(coverW, slabT, L);
+    const mSlab = new THREE.Mesh(gSlab, mat(c2, 0.7));
+    mSlab.position.set(0, outerH + slabT/2, 0);
+    mSlab.castShadow = true;
+    modelGrp.add(mSlab);
+    addEdges(gSlab, mSlab, 0.4);
+  } else if (coverType === 'grate') {
+    buildGrating(bW, coverW, outerH, L, str('ditch-grate-type'), c2);
+  }
+
+  // ── 尺寸標示 ──
+  const lx = outerW/2 + 0.4;
+  addLabel(`B = ${bW} m`, new THREE.Vector3(0, outerH+0.25, 0));
+  addLabel(`H = ${H} m`,  new THREE.Vector3(lx, H/2, 0));
+  addLabel(`L = ${L} m`,  new THREE.Vector3(lx, outerH+0.25, 0));
+  if (type === 'trap') addLabel(`頂寬 T = ${tW} m`, new THREE.Vector3(0, outerH+0.45, 0));
+  addLabel(`壁厚 t = ${wall} m`, new THREE.Vector3(-outerW/2-0.4, wall/2, 0));
+
+  // ── 圖例 ──
+  const tNames = { rect:'矩形溝', trap:'梯形溝', utype:'U型溝', ltype:'L型溝（側溝）' };
+  const coverLabels = { no:'無蓋（開放式）', slab:'溝頂板（混凝土）', grate:'格柵蓋' };
+  const grateTypeLabels = { std30:'一般型 30mm', std40:'一般型 40mm', fine:'細目型 12.5mm' };
+  const lgd = [{ c: c1, n: `${tNames[type]}（混凝土）` }];
+  if (coverType === 'slab')  lgd.push({ c: c2, n: '溝頂板（混凝土蓋板）' });
+  if (coverType === 'grate') lgd.push({ c: c2, n: `格柵蓋（${grateTypeLabels[str('ditch-grate-type')]}）` });
+  setLegend(lgd);
+  const grateInfo = coverType === 'grate' ? `${grateTypeLabels[str('ditch-grate-type')]}` : coverLabels[coverType];
+  updateInfo([`物件：水溝  ｜  ${tNames[type]}`, `B=${bW} m  H=${H} m  L=${L} m`, grateInfo]);
+
+  // ── 體積計算（溝體混凝土體積）──
+  let wallArea = 0;
+  if (type === 'rect' || type === 'utype') {
+    wallArea = (bW + 2*wall) * (H + wall) - bW * H;
+  } else if (type === 'trap') {
+    const oBW = bW + 2*wall, oTW = tW + 2*wall;
+    wallArea = (oBW + oTW)/2 * (H + wall) - (bW + tW)/2 * H;
+  } else {
+    // L型：底版 + 一側立壁
+    wallArea = (bW + wall) * wall + H * wall;
+  }
+  const volRows = [{ n: `溝體（混凝土）`, v: wallArea * L }];
+  if (coverType === 'slab') volRows.push({ n: '溝頂板', v: (outerW + 0.04) * 0.10 * L });
+  showVolume(volRows, outerW * L);
+
+  applyAdvanced();
+  focusOn(0, outerH/2, 0, Math.max(outerW*3, L));
+}
+
+// ═══════════════════════════════════════════════
+//  格柵產生器（供 buildDitch 呼叫）
+// ═══════════════════════════════════════════════
+function buildGrating(innerW, coverW, topY, L, grateType, colorHex) {
+  const specs = {
+    std30: { mainSp: 0.030, crossSp: 0.050, barH: 0.025, barT: 0.003, crossT: 0.005 },
+    std40: { mainSp: 0.040, crossSp: 0.050, barH: 0.025, barT: 0.003, crossT: 0.005 },
+    fine:  { mainSp: 0.0125, crossSp: 0.025, barH: 0.025, barT: 0.003, crossT: 0.003 },
+  };
+  const s = specs[grateType] || specs.std30;
+  const gMat = new THREE.MeshStandardMaterial({
+    color: hex2color(colorHex), roughness: 0.35, metalness: 0.75
+  });
+  const dummy = new THREE.Object3D();
+
+  // ── 邊框（前後端板 + 左右側邊）──
+  const fT = 0.006, fH = s.barH + 0.004;
+  const endGeo  = new THREE.BoxGeometry(coverW, fH, fT);
+  const sideGeo = new THREE.BoxGeometry(fT, fH, L);
+  [-L/2 + fT/2, L/2 - fT/2].forEach(z => {
+    const m = new THREE.Mesh(endGeo, gMat); m.castShadow = true;
+    m.position.set(0, topY + fH/2, z); modelGrp.add(m);
+  });
+  [-coverW/2 + fT/2, coverW/2 - fT/2].forEach(x => {
+    const m = new THREE.Mesh(sideGeo, gMat); m.castShadow = true;
+    m.position.set(x, topY + fH/2, 0); modelGrp.add(m);
+  });
+
+  // ── 主筋（扁鋼）：沿 Z 方向，橫向排列於 X ──
+  const xPositions = [];
+  for (let x = -innerW/2; x <= innerW/2 + 0.001; x += s.mainSp) xPositions.push(x);
+  const mainGeo = new THREE.BoxGeometry(s.barT, s.barH, L - 2 * fT);
+  const mainIM  = new THREE.InstancedMesh(mainGeo, gMat, xPositions.length);
+  mainIM.castShadow = true;
+  xPositions.forEach((x, i) => {
+    dummy.position.set(x, topY + s.barH/2, 0);
+    dummy.updateMatrix(); mainIM.setMatrixAt(i, dummy.matrix);
+  });
+  mainIM.instanceMatrix.needsUpdate = true;
+  modelGrp.add(mainIM);
+
+  // ── 橫筋：沿 X 方向，縱向排列於 Z ──
+  const crossH = s.barH * 0.5;
+  const zPositions = [];
+  for (let z = -L/2 + s.crossSp; z < L/2; z += s.crossSp) zPositions.push(z);
+  if (zPositions.length > 0) {
+    const crossGeo = new THREE.BoxGeometry(innerW, crossH, s.crossT);
+    const crossIM  = new THREE.InstancedMesh(crossGeo, gMat, zPositions.length);
+    zPositions.forEach((z, i) => {
+      dummy.position.set(0, topY + crossH/2, z);
+      dummy.updateMatrix(); crossIM.setMatrixAt(i, dummy.matrix);
+    });
+    crossIM.instanceMatrix.needsUpdate = true;
+    modelGrp.add(crossIM);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  表面紋路產生器
+// ═══════════════════════════════════════════════
+function addSurfacePattern(swType, W, L, baseY, slopeH) {
+  const ep = 0.004;
+  // surfY(x)：在 X 位置的斜面高度（左高右低單向坡）
+  function surfY(x) { return baseY + slopeH * (1 - (x + W/2) / W) + ep; }
+
+  const pts = [];
+  function seg(x1, z1, x2, z2) {
+    pts.push(new THREE.Vector3(x1, surfY(x1), z1));
+    pts.push(new THREE.Vector3(x2, surfY(x2), z2));
+  }
+  // 斜線裁切到矩形
+  function diagLines(slope, spacing) {
+    for (let d = -(W + L); d <= (W + L); d += spacing) {
+      // z = slope*x + d，裁切 x∈[-W/2,W/2] z∈[-L/2,L/2]
+      let x1 = -W/2, x2 = W/2;
+      let z1 = slope * x1 + d, z2 = slope * x2 + d;
+      if (slope !== 0) {
+        if (z1 < -L/2) { x1 = (-L/2 - d) / slope; z1 = -L/2; }
+        if (z1 >  L/2) { x1 = ( L/2 - d) / slope; z1 =  L/2; }
+        if (z2 < -L/2) { x2 = (-L/2 - d) / slope; z2 = -L/2; }
+        if (z2 >  L/2) { x2 = ( L/2 - d) / slope; z2 =  L/2; }
+      } else {
+        z1 = z2 = d;
+        if (d < -L/2 || d > L/2) continue;
+      }
+      if (x1 > x2) { [x1,x2]=[x2,x1]; [z1,z2]=[z2,z1]; }
+      if (x1 >= -W/2 - 0.001 && x2 <= W/2 + 0.001) seg(x1, z1, x2, z2);
+    }
+  }
+  // 縱向直線（沿 Z 方向）
+  function vertLines(spacing) {
+    for (let x = -W/2; x <= W/2 + 0.001; x += spacing)
+      seg(x, -L/2, x, L/2);
+  }
+  // 橫向直線（沿 X 方向）
+  function horizLines(spacing, stagger) {
+    let row = 0;
+    for (let z = -L/2; z <= L/2 + 0.001; z += spacing, row++) {
+      seg(-W/2, z, W/2, z);
+      if (stagger) {
+        const os = (row % 2 === 0) ? 0 : stagger;
+        for (let x = -W/2 + os; x <= W/2; x += stagger * 2)
+          seg(x, z, x, Math.min(L/2, z + spacing));
+      }
+    }
+  }
+
+  const op = swType === 'stone' ? 0.55 : 0.28;
+  const lMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: op, depthWrite: false });
+
+  if (swType === 'brick_hp') {
+    horizLines(0.15, 0.30);   // 30×15cm 人字磚
+  } else if (swType === 'brick_tw') {
+    horizLines(0.10, 0.20);   // 20×10cm 透水磚
+  } else if (swType === 'stamped') {
+    diagLines( 1, 0.35);      // 斜交壓花格網
+    diagLines(-1, 0.35);
+  } else if (swType === 'chiseled') {
+    diagLines(0, 0.08);       // 斬石子橫向紋
+  } else if (swType === 'stone') {
+    horizLines(0.40, 0.60);   // 石板 60×40cm
+    vertLines(0.60);
+  }
+  // spray / washed / asphalt：素面，不加紋路
+
+  if (pts.length === 0) return;
+  const geo  = new THREE.BufferGeometry().setFromPoints(pts);
+  const mesh = new THREE.LineSegments(geo, lMat);
+  modelGrp.add(mesh);
+}
+
+// ═══════════════════════════════════════════════
+//  體積計算顯示
+// ═══════════════════════════════════════════════
+function showVolume(rows, surfArea) {
+  const sec = document.getElementById('vol-section');
+  sec.style.display = '';
+  const total = rows.reduce((s, r) => s + r.v, 0);
+  let html = rows.map(r =>
+    `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;">
+       <span style="color:#9ca3af;">${r.n}</span>
+       <span style="color:#e5e7eb;font-weight:600;">${r.v.toFixed(3)} m³</span>
+     </div>`
+  ).join('');
+  html += `<div style="display:flex;justify-content:space-between;font-size:12px;
+             margin-top:6px;padding-top:6px;border-top:1px solid #374151;">
+    <span style="color:#60a5fa;font-weight:700;">總體積</span>
+    <span style="color:#60a5fa;font-weight:700;">${total.toFixed(3)} m³</span>
+  </div>`;
+  if (surfArea != null)
+    html += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;">
+      <span style="color:#9ca3af;">表面積</span>
+      <span style="color:#e5e7eb;">${surfArea.toFixed(2)} m²</span>
+    </div>`;
+  document.getElementById('vol-table').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+//  人行道產生器
+// ═══════════════════════════════════════════════
+function buildSidewalk() {
+  const W    = val('sw-W'),  L  = val('sw-L');
+  const t1   = val('sw-t1'), t2 = val('sw-t2'), t3 = val('sw-t3');
+  const slop = val('sw-slope') / 100;
+  const c1   = str('sw-c1'), c2 = str('sw-c2'), c3 = str('sw-c3');
+  const matN = str('sw-mat');
+  const preset = window.SW_PRESETS?.[matN] ?? {};
+
+  const slopeH = W * slop;
+  const baseY  = t3 + t2;
+  const totalH = t3 + t2 + t1 + slopeH;
+
+  // ── 路基 ──
+  const g3 = new THREE.BoxGeometry(W, t3, L);
+  const m3 = new THREE.Mesh(g3, mat(c3, 0.9));
+  m3.position.y = t3/2; m3.castShadow = true; m3.receiveShadow = true;
+  modelGrp.add(m3); addEdges(g3, m3);
+
+  // ── 底層 ──
+  const g2 = new THREE.BoxGeometry(W, t2, L);
+  const m2 = new THREE.Mesh(g2, mat(c2, 0.85));
+  m2.position.y = t3 + t2/2; m2.castShadow = true; m2.receiveShadow = true;
+  modelGrp.add(m2); addEdges(g2, m2);
+
+  // ── 面層（單向橫坡）──
+  const surfShape = new THREE.Shape([
+    new THREE.Vector2(-W/2,  slopeH),
+    new THREE.Vector2( W/2,  0),
+    new THREE.Vector2( W/2, -t1),
+    new THREE.Vector2(-W/2,  slopeH - t1),
+  ]);
+  // 面層粗糙度依材質調整
+  const roughMap = { brick_hp:0.8, brick_tw:0.75, stamped:0.7, spray:0.65,
+                     washed:0.85, chiseled:0.8, stone:0.4, asphalt:0.9 };
+  const gSurf = new THREE.ExtrudeGeometry(surfShape, { depth: L, bevelEnabled: false });
+  const mSurf = new THREE.Mesh(gSurf, mat(c1, roughMap[matN] ?? 0.7, matN === 'stone' ? 0.05 : 0));
+  mSurf.position.set(0, baseY, -L/2);
+  mSurf.castShadow = true; mSurf.receiveShadow = true;
+  modelGrp.add(mSurf); addEdges(gSurf, mSurf, 0.25);
+
+  // ── 表面紋路 ──
+  addSurfacePattern(matN, W, L, baseY, slopeH);
+
+  // ── 尺寸標示 ──
+  const lx = W/2 + 0.4;
+  const t1lbl = preset.t1lbl || '面層';
+  const t2lbl = preset.t2lbl || '底層';
+  addDimLine([0, totalH+0.1, -L/2], [0, totalH+0.1, L/2]);
+  addLabel(`L = ${L} m`,                   new THREE.Vector3(0, totalH+0.3, 0));
+  addLabel(`W = ${W} m`,                   new THREE.Vector3(0, baseY+slopeH+0.3, -L/2-0.4));
+  addLabel(`${t1lbl} ${(t1*100).toFixed(1)} cm`, new THREE.Vector3(lx, baseY+t1/2, 0));
+  addLabel(`${t2lbl} ${(t2*100).toFixed(0)} cm`, new THREE.Vector3(lx, t3+t2/2, 0));
+  addLabel(`路基 ${(t3*100).toFixed(0)} cm`,      new THREE.Vector3(lx, t3/2, 0));
+  addLabel(`橫坡 ${val('sw-slope')}%`,            new THREE.Vector3(0, baseY+slopeH+0.55, 0));
+
+  // ── 圖例 ──
+  const pName = preset.name || matN;
+  setLegend([
+    { c: c1, n: `${t1lbl}（${pName}）` },
+    { c: c2, n: t2lbl },
+    { c: c3, n: '路基' },
+  ]);
+  updateInfo([`人行道  ｜  ${pName}`, `W=${W} m  L=${L} m`, `總厚 ${((t1+t2+t3)*100).toFixed(1)} cm`]);
+
+  // ── 體積計算 ──
+  showVolume([
+    { n: `${t1lbl}`,  v: W * L * t1 },
+    { n: `${t2lbl}`,  v: W * L * t2 },
+    { n: '路基',       v: W * L * t3 },
+  ], W * L);
+
+  applyAdvanced();
+  focusOn(0, totalH/2, 0, Math.max(W, L));
+}
+
+// ═══════════════════════════════════════════════
+//  主入口
+// ═══════════════════════════════════════════════
+function generate() {
+  clearScene();
+  const type = document.querySelector('.type-btn.active').id.replace('tbtn-','');
+  if      (type === 'road')     buildRoad();
+  else if (type === 'ditch')    buildDitch();
+  else if (type === 'sidewalk') buildSidewalk();
+}
+
+// ── 視角切換 ──
+window.setView = function(v) {
+  const t = controls.target.clone();
+  const d = camera.position.distanceTo(t);
+  if      (v === 'iso')   camera.position.set(t.x+d*.6, t.y+d*.55, t.z+d*.8);
+  else if (v === 'top')   camera.position.set(t.x, t.y+d, t.z+0.001);
+  else if (v === 'front') camera.position.set(t.x, t.y+d*.1, t.z+d);
+  else if (v === 'side')  camera.position.set(t.x+d, t.y+d*.1, t.z);
+  camera.lookAt(t);
+  controls.update();
+};
+
+// ── 匯出截圖 ──
+window.doExport = function() {
+  renderer.render(scene, camera);
+  const a = document.createElement('a');
+  a.download = `工程模擬_${new Date().toISOString().slice(0,19).replace(/[T:]/g,'_')}.png`;
+  a.href = renderer.domElement.toDataURL('image/png');
+  a.click();
+};
+
+// ── 儲存設定 ──
+window.doSave = function() {
+  const ids = [
+    'road-pave','road-W','road-L','road-t1','road-t2','road-t3','road-crown',
+    'road-c1','road-c2','road-c3',
+    'ditch-type','ditch-cover','ditch-grate-type','ditch-bw','ditch-H','ditch-L',
+    'ditch-tw','ditch-wall','ditch-wall2','ditch-c1','ditch-c2',
+    'sw-mat','sw-W','sw-L','sw-t1','sw-t2','sw-t3','sw-slope',
+    'sw-c1','sw-c2','sw-c3',
+    'adv-x','adv-y','adv-z','adv-angle','adv-grad',
+  ];
+  const activeType = document.querySelector('.type-btn.active').id.replace('tbtn-','');
+  const data = { activeType };
+  ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.download = '工程模擬設定.json';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+};
+
+// ── 載入設定 ──
+window.doLoad = function(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.activeType) setType(data.activeType);
+      Object.entries(data).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && id !== 'activeType') {
+          el.value = val;
+          // 同步顏色 swatch
+          const swatchMap = {
+            'road-c1':'sw-r1','road-c2':'sw-r2','road-c3':'sw-r3',
+            'ditch-c1':'sw-d1','ditch-c2':'sw-d2',
+            'sw-c1':'sw-s1','sw-c2':'sw-s2','sw-c3':'sw-s3',
+          };
+          if (swatchMap[id]) syncSwatch(swatchMap[id], val);
+        }
+      });
+      onDitchTypeChange();
+      onDitchCoverChange();
+      onSwMatChange();
+    } catch { alert('設定檔案格式錯誤，請確認 JSON 格式正確。'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+// ── 重置 ──
+function doReset() {
+  // 高壓磚預設值（人行道）
+  const swP = window.SW_PRESETS?.brick_hp ?? { t1:'0.06', t2:'0.03', t3:'0.15', color:'#c0392b' };
+  const defaults = {
+    'road-W':'7','road-L':'10','road-t1':'0.05','road-t2':'0.15','road-t3':'0.30','road-crown':'2',
+    'road-c1':'#2d2d2d','road-c2':'#7c5a1e','road-c3':'#6b7280',
+    'ditch-bw':'0.60','ditch-H':'0.50','ditch-L':'10','ditch-tw':'0.80',
+    'ditch-wall':'0.10','ditch-wall2':'0.10','ditch-c1':'#9ca3af','ditch-c2':'#6b7280',
+    'ditch-cover':'no','ditch-grate-type':'std30',
+    'sw-mat':'brick_hp',
+    'sw-W':'2.0','sw-L':'10',
+    'sw-t1': swP.t1, 'sw-t2': swP.t2, 'sw-t3': swP.t3, 'sw-slope':'2',
+    'sw-c1': swP.color, 'sw-c2':'#78634a','sw-c3':'#6b7280',
+    'adv-x':'0','adv-y':'0','adv-z':'0','adv-angle':'0','adv-grad':'0',
+  };
+  const swatchMap = {
+    'road-c1':'sw-r1','road-c2':'sw-r2','road-c3':'sw-r3',
+    'ditch-c1':'sw-d1','ditch-c2':'sw-d2',
+    'sw-c1':'sw-s1','sw-c2':'sw-s2','sw-c3':'sw-s3',
+  };
+  Object.entries(defaults).forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = v;
+    if (swatchMap[id]) syncSwatch(swatchMap[id], v);
+  });
+  // 觸發各面板 UI 更新
+  if (typeof onSwMatChange === 'function') onSwMatChange();
+  clearScene();
+  setLegend([]);
+  document.getElementById('legend-items').innerHTML = '<span style="font-size:11px;color:#6b7280;">尚未產生模型</span>';
+  document.getElementById('vol-section').style.display = 'none';
+  updateInfo(['—']);
+}
+
+// ══════ 暴露到 window ══════
+window.generate  = generate;
+window.doReset   = doReset;
+window.doSave    = doSave;
+window.doLoad    = doLoad;
+window.doExport  = doExport;
+</script>
+
+<script>
+// ═══════════════════════════════════════════════
+//  UI 控制（非 module，方便 inline onclick）
+// ═══════════════════════════════════════════════
+let _currentType = 'road';
+
+function setType(t) {
+  _currentType = t;
+  ['road','ditch','sidewalk'].forEach(k => {
+    document.getElementById(`panel-${k}`).style.display = k === t ? '' : 'none';
+    document.getElementById(`tbtn-${k}`).classList.toggle('active', k === t);
+  });
+}
+
+function syncSwatch(swatchId, color) {
+  const el = document.getElementById(swatchId);
+  if (el) el.style.background = color;
+}
+
+function toggleAdv() {
+  const body = document.getElementById('adv-body');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  document.getElementById('adv-arrow').textContent = open ? '▶' : '▼';
+}
+
+function onRoadPaveChange() {
+  const v = document.getElementById('road-pave').value;
+  document.getElementById('road-t1-lbl').textContent = v === 'rigid' ? '面版厚' : '面層厚';
+  document.getElementById('road-c1-name').textContent = v === 'rigid' ? '面層（混凝土）' : '面層（瀝青）';
+  if (v === 'rigid') {
+    document.getElementById('road-c1').value = '#c0c0c0';
+    syncSwatch('sw-r1', '#c0c0c0');
+    document.getElementById('road-t1').value = 0.20;
+  } else {
+    document.getElementById('road-c1').value = '#2d2d2d';
+    syncSwatch('sw-r1', '#2d2d2d');
+    document.getElementById('road-t1').value = 0.05;
+  }
+}
+
+function onDitchTypeChange() {
+  const t = document.getElementById('ditch-type').value;
+  const isTrap = t === 'trap';
+  document.getElementById('ditch-tw-row').style.display  = isTrap ? '' : 'none';
+  document.getElementById('ditch-wall-row').style.display = isTrap ? 'none' : '';
+  document.getElementById('ditch-bw-lbl').textContent = isTrap ? '底寬 B' : '內寬 B';
+}
+
+function onDitchCoverChange() {
+  const v = document.getElementById('ditch-cover').value;
+  document.getElementById('ditch-cover-row').style.display  = v !== 'no' ? '' : 'none';
+  document.getElementById('ditch-grate-opts').style.display = v === 'grate' ? '' : 'none';
+  const labels = { slab:'溝頂板（混凝土）', grate:'格柵（鋼製）' };
+  const lbl = document.getElementById('ditch-cover-clabel');
+  if (lbl) lbl.textContent = labels[v] || '頂蓋';
+  // 預設顏色
+  if (v === 'slab') {
+    document.getElementById('ditch-c2').value = '#b0bec5';
+    syncSwatch('sw-d2', '#b0bec5');
+  } else if (v === 'grate') {
+    document.getElementById('ditch-c2').value = '#607d8b';
+    syncSwatch('sw-d2', '#607d8b');
+  }
+}
+
+function onGrateTypeChange() {
+  const notes = {
+    std30: '扁鋼 25×3 mm　主筋間距 30 mm　橫筋間距 50 mm',
+    std40: '扁鋼 25×3 mm　主筋間距 40 mm　橫筋間距 50 mm',
+    fine:  '扁鋼 25×3 mm　主筋間距 12.5 mm　橫筋間距 25 mm',
+  };
+  const t = document.getElementById('ditch-grate-type').value;
+  document.getElementById('grate-spec-note').textContent = notes[t] || '';
+}
+
+const SW_PRESETS = {
+  brick_hp:  { name:'高壓混凝土磚', color:'#c0392b', t1:'0.06', t2:'0.03', t3:'0.15',
+               t1lbl:'高壓磚層', t2lbl:'水泥砂漿墊層' },
+  brick_tw:  { name:'透水磚',       color:'#e07b39', t1:'0.06', t2:'0.15', t3:'0.20',
+               t1lbl:'透水磚層', t2lbl:'透水碎石級配' },
+  stamped:   { name:'壓花混凝土',   color:'#d4845a', t1:'0.10', t2:'0.10', t3:'0.20',
+               t1lbl:'壓花混凝土面版', t2lbl:'碎石級配底層' },
+  spray:     { name:'噴花（噴漿）', color:'#c8b89a', t1:'0.015', t2:'0.12', t3:'0.15',
+               t1lbl:'噴漿面層', t2lbl:'混凝土結構層' },
+  washed:    { name:'洗石子',       color:'#d4b896', t1:'0.03', t2:'0.03', t3:'0.15',
+               t1lbl:'洗石子面層', t2lbl:'水泥砂漿底層' },
+  chiseled:  { name:'斬石子',       color:'#9e9ea0', t1:'0.03', t2:'0.03', t3:'0.15',
+               t1lbl:'斬石子面層', t2lbl:'水泥砂漿底層' },
+  stone:     { name:'石板（花崗岩）',color:'#9ea6ad', t1:'0.025', t2:'0.03', t3:'0.15',
+               t1lbl:'花崗岩石板', t2lbl:'水泥砂漿黏著層' },
+  asphalt:   { name:'透水瀝青',     color:'#3d4451', t1:'0.04', t2:'0.15', t3:'0.20',
+               t1lbl:'透水瀝青面層', t2lbl:'透水碎石級配' },
+};
+
+function onSwMatChange() {
+  const v = document.getElementById('sw-mat').value;
+  const p = SW_PRESETS[v];
+  if (!p) return;
+  document.getElementById('sw-c1-name').textContent = `面層（${p.name}）`;
+  document.getElementById('sw-c1').value = p.color;
+  syncSwatch('sw-s1', p.color);
+  document.getElementById('sw-t1-lbl').textContent = p.t1lbl;
+  document.getElementById('sw-t1').value = p.t1;
+  document.getElementById('sw-t2').value = p.t2;
+  document.getElementById('sw-t3').value = p.t3;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Claude Code 本機設定
+.claude/
+
+# 系統暫存檔
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 編輯器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node（未來擴充用）
+node_modules/
