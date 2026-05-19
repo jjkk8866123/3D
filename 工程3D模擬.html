@@ -203,7 +203,7 @@ hr { border: none; border-top: 1px solid #374151; margin: 10px 0; }
         <select id="ditch-cover" onchange="onDitchCoverChange()">
           <option value="no">無蓋（開放式）</option>
           <option value="slab">溝頂板（混凝土蓋板）</option>
-          <option value="grate">格柵（鋼製格柵蓋）</option>
+          <option value="slab-grate">溝頂板（含格柵進水口）</option>
         </select>
       </div>
       <!-- 格柵子選單 -->
@@ -216,8 +216,16 @@ hr { border: none; border-top: 1px solid #374151; margin: 10px 0; }
             <option value="fine">細目型（主筋間距 12.5 mm）</option>
           </select>
         </div>
-        <div id="grate-spec-note" style="font-size:10px;color:#6b7280;padding:2px 2px 8px;line-height:1.6;">
+        <div id="grate-spec-note" style="font-size:10px;color:#6b7280;padding:2px 0 6px;line-height:1.6;">
           扁鋼 25×3 mm　主筋間距 30 mm　橫筋間距 50 mm
+        </div>
+        <div class="g2">
+          <div class="fg"><label>格柵寬 (m)</label><input type="number" id="ditch-grate-w" value="0.45" min="0.20" step="0.05"></div>
+          <div class="fg"><label>格柵長 (m)</label><input type="number" id="ditch-grate-l" value="0.65" min="0.30" step="0.05"></div>
+        </div>
+        <div class="fg">
+          <label>設置間距 (m)　<span style="color:#6b7280;font-size:10px;">每隔幾公尺設一個</span></label>
+          <input type="number" id="ditch-grate-spacing" value="20" min="1" step="1">
         </div>
       </div>
 
@@ -693,17 +701,56 @@ function buildDitch() {
 
   // ── 頂蓋 ──
   const coverW = outerW + 0.04;
+  const slabT  = 0.10;
   if (coverType === 'slab') {
-    // 混凝土溝頂板 10 cm
-    const slabT = 0.10;
     const gSlab = new THREE.BoxGeometry(coverW, slabT, L);
     const mSlab = new THREE.Mesh(gSlab, mat(c2, 0.7));
     mSlab.position.set(0, outerH + slabT/2, 0);
     mSlab.castShadow = true;
     modelGrp.add(mSlab);
     addEdges(gSlab, mSlab, 0.4);
-  } else if (coverType === 'grate') {
-    buildGrating(bW, coverW, outerH, L, str('ditch-grate-type'), c2);
+  } else if (coverType === 'slab-grate') {
+    // 溝頂板含格柵進水口：混凝土蓋板留孔 + 鋼格柵嵌入
+    const gW = Math.min(val('ditch-grate-w') || 0.45, coverW - 0.02);
+    const gL = Math.min(val('ditch-grate-l') || 0.65, L - 0.04);
+    const gSpacing = Math.max(val('ditch-grate-spacing') || 20, gL + 0.1);
+    // 計算格柵位置（至少1個，設於中央）
+    const numGrates = Math.max(1, Math.floor(L / gSpacing));
+    const grateZs = [];
+    if (numGrates === 1) {
+      grateZs.push(0);
+    } else {
+      const step = L / numGrates;
+      for (let i = 0; i < numGrates; i++) grateZs.push(-L/2 + step * (i + 0.5));
+    }
+    // 蓋板：在格柵開口兩側各一段 + 每個開口左右窄條
+    const slabMat = mat(c2, 0.7);
+    const sorted = [...grateZs].sort((a, b) => a - b);
+    const sections = [];
+    let prev = -L/2;
+    for (const gz of sorted) {
+      const gs = gz - gL/2, ge = gz + gL/2;
+      if (gs - prev > 0.001) sections.push([prev, gs]);
+      prev = ge;
+    }
+    if (L/2 - prev > 0.001) sections.push([prev, L/2]);
+    for (const [z0, z1] of sections) {
+      const len = z1 - z0;
+      const g = new THREE.BoxGeometry(coverW, slabT, len);
+      const m = new THREE.Mesh(g, slabMat); m.castShadow = true;
+      m.position.set(0, outerH + slabT/2, (z0 + z1) / 2);
+      modelGrp.add(m); addEdges(g, m, 0.4);
+    }
+    const sideW = (coverW - gW) / 2;
+    for (const gz of sorted) {
+      [-(gW/2 + sideW/2), (gW/2 + sideW/2)].forEach(xp => {
+        const g = new THREE.BoxGeometry(sideW, slabT, gL);
+        const m = new THREE.Mesh(g, slabMat); m.castShadow = true;
+        m.position.set(xp, outerH + slabT/2, gz);
+        modelGrp.add(m); addEdges(g, m, 0.4);
+      });
+      buildGrating(gW, gL, outerH, str('ditch-grate-type'), c2, gz);
+    }
   }
 
   // ── 尺寸標示 ──
@@ -716,14 +763,16 @@ function buildDitch() {
 
   // ── 圖例 ──
   const tNames = { rect:'矩形溝', trap:'梯形溝', utype:'U型溝', ltype:'L型溝（側溝）' };
-  const coverLabels = { no:'無蓋（開放式）', slab:'溝頂板（混凝土）', grate:'格柵蓋' };
+  const coverLabels = { no:'無蓋（開放式）', slab:'溝頂板（混凝土）', 'slab-grate':'溝頂板（含格柵）' };
   const grateTypeLabels = { std30:'一般型 30mm', std40:'一般型 40mm', fine:'細目型 12.5mm' };
   const lgd = [{ c: c1, n: `${tNames[type]}（混凝土）` }];
-  if (coverType === 'slab')  lgd.push({ c: c2, n: '溝頂板（混凝土蓋板）' });
-  if (coverType === 'grate') lgd.push({ c: c2, n: `格柵蓋（${grateTypeLabels[str('ditch-grate-type')]}）` });
+  if (coverType === 'slab')       lgd.push({ c: c2, n: '溝頂板（混凝土蓋板）' });
+  if (coverType === 'slab-grate') lgd.push({ c: c2, n: `溝頂板＋格柵（${grateTypeLabels[str('ditch-grate-type')]}）` });
   setLegend(lgd);
-  const grateInfo = coverType === 'grate' ? `${grateTypeLabels[str('ditch-grate-type')]}` : coverLabels[coverType];
-  updateInfo([`物件：水溝  ｜  ${tNames[type]}`, `B=${bW} m  H=${H} m  L=${L} m`, grateInfo]);
+  const coverInfo = coverType === 'slab-grate'
+    ? `${coverLabels['slab-grate']}  ${grateTypeLabels[str('ditch-grate-type')]}`
+    : coverLabels[coverType];
+  updateInfo([`物件：水溝  ｜  ${tNames[type]}`, `B=${bW} m  H=${H} m  L=${L} m`, coverInfo]);
 
   // ── 體積計算（溝體混凝土體積）──
   let wallArea = 0;
@@ -737,7 +786,15 @@ function buildDitch() {
     wallArea = (bW + wall) * wall + H * wall;
   }
   const volRows = [{ n: `溝體（混凝土）`, v: wallArea * L }];
-  if (coverType === 'slab') volRows.push({ n: '溝頂板', v: (outerW + 0.04) * 0.10 * L });
+  if (coverType === 'slab') {
+    volRows.push({ n: '溝頂板', v: coverW * slabT * L });
+  } else if (coverType === 'slab-grate') {
+    const gW2 = Math.min(val('ditch-grate-w') || 0.45, coverW - 0.02);
+    const gL2 = Math.min(val('ditch-grate-l') || 0.65, L - 0.04);
+    const nG  = Math.max(1, Math.floor(L / Math.max(val('ditch-grate-spacing') || 20, gL2 + 0.1)));
+    const slabVol = coverW * slabT * L - nG * gW2 * slabT * gL2;
+    volRows.push({ n: `溝頂板（扣除 ${nG} 個格柵開口）`, v: slabVol });
+  }
   showVolume(volRows, outerW * L);
 
   applyAdvanced();
@@ -747,7 +804,8 @@ function buildDitch() {
 // ═══════════════════════════════════════════════
 //  格柵產生器（供 buildDitch 呼叫）
 // ═══════════════════════════════════════════════
-function buildGrating(innerW, coverW, topY, L, grateType, colorHex) {
+// grateW/grateL = 格柵面板尺寸（寬×長），zPos = 格柵中心 Z 座標
+function buildGrating(grateW, grateL, topY, grateType, colorHex, zPos = 0) {
   const specs = {
     std30: { mainSp: 0.030, crossSp: 0.050, barH: 0.025, barT: 0.003, crossT: 0.005 },
     std40: { mainSp: 0.040, crossSp: 0.050, barH: 0.025, barT: 0.003, crossT: 0.005 },
@@ -761,38 +819,40 @@ function buildGrating(innerW, coverW, topY, L, grateType, colorHex) {
 
   // ── 邊框（前後端板 + 左右側邊）──
   const fT = 0.006, fH = s.barH + 0.004;
-  const endGeo  = new THREE.BoxGeometry(coverW, fH, fT);
-  const sideGeo = new THREE.BoxGeometry(fT, fH, L);
-  [-L/2 + fT/2, L/2 - fT/2].forEach(z => {
+  const endGeo  = new THREE.BoxGeometry(grateW, fH, fT);
+  const sideGeo = new THREE.BoxGeometry(fT, fH, grateL);
+  [zPos - grateL/2 + fT/2, zPos + grateL/2 - fT/2].forEach(z => {
     const m = new THREE.Mesh(endGeo, gMat); m.castShadow = true;
     m.position.set(0, topY + fH/2, z); modelGrp.add(m);
   });
-  [-coverW/2 + fT/2, coverW/2 - fT/2].forEach(x => {
+  [-grateW/2 + fT/2, grateW/2 - fT/2].forEach(x => {
     const m = new THREE.Mesh(sideGeo, gMat); m.castShadow = true;
-    m.position.set(x, topY + fH/2, 0); modelGrp.add(m);
+    m.position.set(x, topY + fH/2, zPos); modelGrp.add(m);
   });
 
   // ── 主筋（扁鋼）：沿 Z 方向，橫向排列於 X ──
   const xPositions = [];
-  for (let x = -innerW/2; x <= innerW/2 + 0.001; x += s.mainSp) xPositions.push(x);
-  const mainGeo = new THREE.BoxGeometry(s.barT, s.barH, L - 2 * fT);
-  const mainIM  = new THREE.InstancedMesh(mainGeo, gMat, xPositions.length);
-  mainIM.castShadow = true;
-  xPositions.forEach((x, i) => {
-    dummy.position.set(x, topY + s.barH/2, 0);
-    dummy.updateMatrix(); mainIM.setMatrixAt(i, dummy.matrix);
-  });
-  mainIM.instanceMatrix.needsUpdate = true;
-  modelGrp.add(mainIM);
+  for (let x = -grateW/2 + s.mainSp; x < grateW/2 - 0.001; x += s.mainSp) xPositions.push(x);
+  if (xPositions.length > 0) {
+    const mainGeo = new THREE.BoxGeometry(s.barT, s.barH, grateL - 2 * fT);
+    const mainIM  = new THREE.InstancedMesh(mainGeo, gMat, xPositions.length);
+    mainIM.castShadow = true;
+    xPositions.forEach((x, i) => {
+      dummy.position.set(x, topY + s.barH/2, zPos);
+      dummy.updateMatrix(); mainIM.setMatrixAt(i, dummy.matrix);
+    });
+    mainIM.instanceMatrix.needsUpdate = true;
+    modelGrp.add(mainIM);
+  }
 
   // ── 橫筋：沿 X 方向，縱向排列於 Z ──
   const crossH = s.barH * 0.5;
-  const zPositions = [];
-  for (let z = -L/2 + s.crossSp; z < L/2; z += s.crossSp) zPositions.push(z);
-  if (zPositions.length > 0) {
-    const crossGeo = new THREE.BoxGeometry(innerW, crossH, s.crossT);
-    const crossIM  = new THREE.InstancedMesh(crossGeo, gMat, zPositions.length);
-    zPositions.forEach((z, i) => {
+  const zCrossPositions = [];
+  for (let z = zPos - grateL/2 + s.crossSp; z < zPos + grateL/2; z += s.crossSp) zCrossPositions.push(z);
+  if (zCrossPositions.length > 0) {
+    const crossGeo = new THREE.BoxGeometry(grateW - 2*fT, crossH, s.crossT);
+    const crossIM  = new THREE.InstancedMesh(crossGeo, gMat, zCrossPositions.length);
+    zCrossPositions.forEach((z, i) => {
       dummy.position.set(0, topY + crossH/2, z);
       dummy.updateMatrix(); crossIM.setMatrixAt(i, dummy.matrix);
     });
@@ -1016,7 +1076,7 @@ window.doSave = function() {
   const ids = [
     'road-pave','road-W','road-L','road-t1','road-t2','road-t3','road-crown',
     'road-c1','road-c2','road-c3',
-    'ditch-type','ditch-cover','ditch-grate-type','ditch-bw','ditch-H','ditch-L',
+    'ditch-type','ditch-cover','ditch-grate-type','ditch-grate-w','ditch-grate-l','ditch-grate-spacing','ditch-bw','ditch-H','ditch-L',
     'ditch-tw','ditch-wall','ditch-wall2','ditch-c1','ditch-c2',
     'sw-mat','sw-W','sw-L','sw-t1','sw-t2','sw-t3','sw-slope',
     'sw-c1','sw-c2','sw-c3',
@@ -1071,7 +1131,7 @@ function doReset() {
     'road-c1':'#2d2d2d','road-c2':'#7c5a1e','road-c3':'#6b7280',
     'ditch-bw':'0.60','ditch-H':'0.50','ditch-L':'10','ditch-tw':'0.80',
     'ditch-wall':'0.10','ditch-wall2':'0.10','ditch-c1':'#9ca3af','ditch-c2':'#6b7280',
-    'ditch-cover':'no','ditch-grate-type':'std30',
+    'ditch-cover':'no','ditch-grate-type':'std30','ditch-grate-w':'0.45','ditch-grate-l':'0.65','ditch-grate-spacing':'20',
     'sw-mat':'brick_hp',
     'sw-W':'2.0','sw-L':'10',
     'sw-t1': swP.t1, 'sw-t2': swP.t2, 'sw-t3': swP.t3, 'sw-slope':'2',
@@ -1157,15 +1217,15 @@ function onDitchTypeChange() {
 function onDitchCoverChange() {
   const v = document.getElementById('ditch-cover').value;
   document.getElementById('ditch-cover-row').style.display  = v !== 'no' ? '' : 'none';
-  document.getElementById('ditch-grate-opts').style.display = v === 'grate' ? '' : 'none';
-  const labels = { slab:'溝頂板（混凝土）', grate:'格柵（鋼製）' };
+  document.getElementById('ditch-grate-opts').style.display = v === 'slab-grate' ? '' : 'none';
+  const labels = { slab:'溝頂板（混凝土）', 'slab-grate':'溝頂板＋格柵（鋼製）' };
   const lbl = document.getElementById('ditch-cover-clabel');
   if (lbl) lbl.textContent = labels[v] || '頂蓋';
   // 預設顏色
   if (v === 'slab') {
     document.getElementById('ditch-c2').value = '#b0bec5';
     syncSwatch('sw-d2', '#b0bec5');
-  } else if (v === 'grate') {
+  } else if (v === 'slab-grate') {
     document.getElementById('ditch-c2').value = '#607d8b';
     syncSwatch('sw-d2', '#607d8b');
   }
