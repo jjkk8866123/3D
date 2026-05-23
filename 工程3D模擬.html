@@ -117,6 +117,71 @@ hr { border: none; border-top: 1px solid #374151; margin: 10px 0; }
   text-align: right; z-index: 10; line-height: 1.6;
 }
 
+/* ══════════════════════════════════════════
+   通報整合模式 UI
+══════════════════════════════════════════ */
+
+/* 模式切換按鈕 */
+.mode-btns { display: flex; gap: 4px; margin-top: 8px; }
+.mode-btn {
+  flex: 1; padding: 5px 2px; font-size: 11px; font-family: inherit;
+  background: #111827; border: 1px solid #374151; border-radius: 4px;
+  color: #9ca3af; cursor: pointer; transition: all .15s;
+}
+.mode-btn:hover { border-color: #60a5fa; color: #60a5fa; }
+.mode-btn.active { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; font-weight: 700; }
+
+/* 訊息框 */
+.msg-box { border-radius: 5px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; line-height: 1.6; }
+.msg-info { background: #0c1a2e; color: #93c5fd; border: 1px solid #1e3a5f; }
+.msg-warn { background: #422006; color: #fdba74; border: 1px solid #78350f; }
+
+/* 通報卡片 */
+.report-card {
+  background: #111827; border: 1px solid #374151; border-radius: 6px;
+  padding: 9px 11px; margin-bottom: 7px;
+}
+.rc-date { font-size: 10px; color: #6b7280; margin-bottom: 3px; }
+.rc-desc { font-size: 11px; color: #d1d5db; line-height: 1.5; }
+.rc-status {
+  display: inline-block; margin-top: 4px; padding: 2px 7px;
+  border-radius: 3px; font-size: 10px; font-weight: 700;
+}
+.status-approve { background: #064e3b; color: #34d399; }
+.status-pending { background: #451a03; color: #fb923c; }
+.status-reject  { background: #450a0a; color: #f87171; }
+.status-none    { background: #1f2937; color: #9ca3af; }
+
+/* 統計卡 */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 8px; }
+.stat-card { text-align: center; border-radius: 5px; padding: 6px 4px; }
+.stat-card .stat-n { font-size: 20px; font-weight: 700; }
+.stat-card .stat-l { font-size: 10px; }
+
+/* 視埠狀態徽章 */
+#status-badge {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(31,41,55,.92); border: 1px solid #374151;
+  border-radius: 6px; padding: 8px 12px; z-index: 10;
+  font-size: 12px; line-height: 1.8; display: none;
+}
+.sb-project { color: #93c5fd; font-weight: 700; font-size: 13px; }
+.sb-status  { color: #e5e7eb; }
+.sb-link    { color: #60a5fa; text-decoration: none; font-size: 11px; }
+.sb-link:hover { text-decoration: underline; }
+
+/* 旋轉動畫 */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin .8s linear infinite; display: inline-block; }
+
+/* 通報面板輸入框 */
+#report-project-input {
+  width: 100%; padding: 5px 8px;
+  background: #111827; border: 1px solid #374151; border-radius: 4px;
+  color: #e5e7eb; font-size: 12px; font-family: inherit;
+}
+#report-project-input:focus { outline: none; border-color: #60a5fa; }
+
 /* ── CSS2D 標示 ── */
 .dim-label {
   background: rgba(37,99,235,.18); color: #93c5fd;
@@ -133,8 +198,59 @@ hr { border: none; border-top: 1px solid #374151; margin: 10px 0; }
   <div id="sidebar-header">
     <h1>工程 3D 模擬系統</h1>
     <p>單一物件模擬  ｜  公制單位 (m)</p>
+    <div class="mode-btns">
+      <button class="mode-btn active" id="mbtn-3d"     onclick="switchMode('3d')">🔧 3D 模擬</button>
+      <button class="mode-btn"        id="mbtn-report" onclick="switchMode('report')">📋 通報整合</button>
+    </div>
   </div>
   <div id="sidebar-body">
+
+    <!-- ══════ 通報整合面板 ══════ -->
+    <div id="panel-report-mode" style="display:none">
+
+      <div class="msg-info msg-box" style="margin-top:4px;">
+        💡 讀取現場通報記錄，與 3D 設計疊合顯示，還原「設計意圖 ↔ 實際施工」完整樣貌。<br>
+        ⚙️ 需先將
+        <a href="https://docs.google.com/spreadsheets/d/1TvftRdCuEoxVlOilusFbdC4jx3vh5iPnNWFjos6nBVQ"
+           target="_blank" style="color:#60a5fa;">通報試算表</a>
+        改為 <strong style="color:#fff;">「任何人可檢視」</strong>
+      </div>
+
+      <div class="sec">專案名稱</div>
+      <div class="fg">
+        <input id="report-project-input" type="text"
+               placeholder="輸入與通報系統相同的專案名稱…"
+               onkeydown="if(event.key==='Enter')loadReportData()">
+      </div>
+      <button class="btn btn-generate" id="btn-load-report"
+              onclick="loadReportData()" style="font-size:12px;padding:8px;">
+        📡 載入通報記錄
+      </button>
+
+      <div id="report-loading" style="display:none;text-align:center;color:#6b7280;padding:10px;font-size:12px;">
+        <span class="spin">⟳</span> 讀取中…
+      </div>
+      <div id="report-error" class="msg-warn msg-box" style="display:none;"></div>
+
+      <div id="report-result" style="display:none">
+        <div class="sec">通報摘要</div>
+        <div id="report-summary"></div>
+        <div class="sec" style="margin-top:4px;">通報記錄（最新在前）</div>
+        <div id="report-timeline"></div>
+      </div>
+
+      <div class="sec" style="margin-top:6px;">現場照片雲端</div>
+      <div class="msg-info msg-box">
+        📁 所有施工照片集中存放：<br>
+        <a href="https://drive.google.com/drive/folders/1ZOc-n7tccXb7ACcGXmMNLV_rIAfxckRO"
+           target="_blank" style="color:#60a5fa;text-decoration:none;">
+          🔗 開啟雲端照片資料夾 →
+        </a>
+      </div>
+    </div><!-- /panel-report-mode -->
+
+    <!-- ══════ 3D 模擬控制區 ══════ -->
+    <div id="panel-3d-mode">
 
     <!-- 物件類型 -->
     <div class="sec">物件類型</div>
@@ -339,6 +455,7 @@ hr { border: none; border-top: 1px solid #374151; margin: 10px 0; }
     <input type="file" id="file-load" accept=".json" style="display:none" onchange="doLoad(event)">
     <hr>
     <p class="hint">左鍵旋轉　右鍵平移　滾輪縮放</p>
+    </div><!-- /panel-3d-mode -->
   </div>
 </div>
 
@@ -357,6 +474,13 @@ hr { border: none; border-top: 1px solid #374151; margin: 10px 0; }
   </div>
   <div id="info-bar">
     <div id="info-text">—</div>
+  </div>
+  <!-- 通報整合：視埠狀態徽章 -->
+  <div id="status-badge">
+    <div class="sb-project" id="sb-project-name"></div>
+    <div class="sb-status"  id="sb-status-text"></div>
+    <a class="sb-link" href="https://drive.google.com/drive/folders/1ZOc-n7tccXb7ACcGXmMNLV_rIAfxckRO"
+       target="_blank">📁 查看施工照片 →</a>
   </div>
 </div>
 
@@ -1160,6 +1284,24 @@ function doReset() {
   updateInfo(['—']);
 }
 
+// ══════════════════════════════════════════
+//  通報整合：依審核狀態改變場景環境光色
+// ══════════════════════════════════════════
+let _statusLight = null;
+window.setSceneStatus = function(status) {
+  // 清除舊的狀態燈
+  if (_statusLight) { scene.remove(_statusLight); _statusLight = null; }
+  let color;
+  if      (status.includes('核准')) color = 0x34d399;  // 綠：已核准
+  else if (status.includes('退回')) color = 0xf87171;  // 紅：已退回
+  else if (status.includes('待審')) color = 0xfb923c;  // 橘：待審核
+  else return;
+  const light = new THREE.PointLight(color, 0.55, 60);
+  light.position.set(0, 10, 6);
+  scene.add(light);
+  _statusLight = light;
+};
+
 // ══════ 暴露到 window ══════
 window.generate  = generate;
 window.doReset   = doReset;
@@ -1274,6 +1416,149 @@ function onSwMatChange() {
   document.getElementById('sw-t1').value = p.t1;
   document.getElementById('sw-t2').value = p.t2;
   document.getElementById('sw-t3').value = p.t3;
+}
+
+// ══════════════════════════════════════════════════════════
+//  通報整合功能
+//  資料流：GAS → Google Sheets（通報系統寫）←→ 3D系統（讀）
+// ══════════════════════════════════════════════════════════
+const _SHEETS_ID = '1TvftRdCuEoxVlOilusFbdC4jx3vh5iPnNWFjos6nBVQ';
+
+// 模式切換
+function switchMode(mode) {
+  document.getElementById('panel-3d-mode').style.display     = (mode === '3d')     ? '' : 'none';
+  document.getElementById('panel-report-mode').style.display = (mode === 'report') ? '' : 'none';
+  document.getElementById('mbtn-3d').classList.toggle('active',     mode === '3d');
+  document.getElementById('mbtn-report').classList.toggle('active', mode === 'report');
+  // 切回 3D 模式時隱藏狀態徽章
+  if (mode !== 'report') document.getElementById('status-badge').style.display = 'none';
+}
+window.switchMode = switchMode;
+
+// CSV 解析器（處理引號包覆欄位）
+function _parseCSV(text) {
+  return text.trim().split('\n').map(line => {
+    const cols = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+// 審核狀態 → CSS 類別
+function _statusClass(s) {
+  if ((s || '').includes('核准')) return 'status-approve';
+  if ((s || '').includes('退回')) return 'status-reject';
+  if ((s || '').includes('待審')) return 'status-pending';
+  return 'status-none';
+}
+
+// 載入通報資料（從 Google Sheets 公開 CSV）
+async function loadReportData() {
+  const project = (document.getElementById('report-project-input').value || '').trim();
+  const errEl   = document.getElementById('report-error');
+  if (!project) {
+    errEl.style.display = ''; errEl.textContent = '⚠️ 請輸入專案名稱'; return;
+  }
+  errEl.style.display = 'none';
+  document.getElementById('report-result').style.display  = 'none';
+  document.getElementById('report-loading').style.display = '';
+  document.getElementById('btn-load-report').disabled = true;
+
+  // gviz/tq 端點：公開試算表可直接跨域讀取 CSV（免 API 金鑰）
+  const url = `https://docs.google.com/spreadsheets/d/${_SHEETS_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(project)}`;
+  try {
+    const resp = await fetch(url);
+    const text = await resp.text();
+    // Google 對私有試算表返回 HTML 錯誤頁
+    if (text.trim().startsWith('<')) throw new Error('試算表尚未設為公開，或找不到此專案工作表');
+    const rows = _parseCSV(text).slice(1).filter(r => r.length >= 15 && r[0]);
+    if (rows.length === 0) throw new Error('此專案目前尚無通報記錄（工作表為空）');
+    _renderReports(project, rows);
+  } catch (e) {
+    errEl.style.display = '';
+    errEl.innerHTML = `⚠️ ${e.message}<br>
+      <small style="opacity:.78;">設定步驟：<br>
+      1. 開啟試算表 → 右上角「共用」<br>
+      2. 一般存取 → 改為「知道連結的任何人」→ 選「檢視者」<br>
+      3. 完成後再按「載入通報記錄」</small>`;
+  } finally {
+    document.getElementById('report-loading').style.display = 'none';
+    document.getElementById('btn-load-report').disabled = false;
+  }
+}
+window.loadReportData = loadReportData;
+
+// 渲染通報資料到面板 + 更新 3D 場景狀態
+function _renderReports(project, rows) {
+  // 最新審核狀態（rows 為時間正序，最後一筆最新）
+  const latestStatus = rows[rows.length - 1][14] || '待審核';
+
+  // ① 視埠狀態徽章
+  document.getElementById('status-badge').style.display = '';
+  document.getElementById('sb-project-name').textContent = '📋 ' + project;
+  document.getElementById('sb-status-text').innerHTML =
+    `共 <strong>${rows.length}</strong> 筆通報&emsp;最新：` +
+    `<span class="rc-status ${_statusClass(latestStatus)}" style="padding:1px 6px;">${latestStatus}</span>`;
+
+  // ② 通知 Three.js 模組改變場景燈光色
+  if (window.setSceneStatus) window.setSceneStatus(latestStatus);
+
+  // ③ 統計卡
+  const approved = rows.filter(r => (r[14] || '').includes('核准')).length;
+  const pending  = rows.filter(r => (r[14] || '').includes('待審')).length;
+  const rejected = rows.filter(r => (r[14] || '').includes('退回')).length;
+  document.getElementById('report-summary').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card" style="background:#064e3b;">
+        <div class="stat-n" style="color:#34d399;">${approved}</div>
+        <div class="stat-l" style="color:#6ee7b7;">已核准</div>
+      </div>
+      <div class="stat-card" style="background:#451a03;">
+        <div class="stat-n" style="color:#fb923c;">${pending}</div>
+        <div class="stat-l" style="color:#fdba74;">待審核</div>
+      </div>
+      <div class="stat-card" style="background:#450a0a;">
+        <div class="stat-n" style="color:#f87171;">${rejected}</div>
+        <div class="stat-l" style="color:#fca5a5;">已退回</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#6b7280;">最後打卡：${rows[rows.length - 1][0] || '—'}</div>`;
+
+  // ④ 時間軸通報卡（新→舊）
+  document.getElementById('report-timeline').innerHTML = [...rows].reverse().map(r => {
+    const date    = r[1]  || r[0] || '—';
+    const type    = r[3]  || '—';
+    const equip   = r[5]  || '無';
+    const person  = r[6]  || '—';
+    const desc    = r[10] || '未填寫';
+    const gps     = r[4]  || '';
+    const status  = r[14] || '待審核';
+    const approver   = r[16] || '';
+    const approveAt  = (r[15] || '').slice(0, 10);
+    const gpsHtml = gps
+      ? `<div class="rc-desc">📍 <a href="https://maps.google.com/?q=${encodeURIComponent(gps)}" target="_blank" style="color:#60a5fa;text-decoration:none;">查看施工地點 →</a></div>`
+      : '';
+    const approveHtml = approver
+      ? `<span style="color:#6b7280;font-size:10px;">&emsp;${approver}　${approveAt}</span>` : '';
+    return `<div class="report-card">
+      <div class="rc-date">📅 ${date}　${type}</div>
+      <div class="rc-desc">👷 人員：${person}</div>
+      <div class="rc-desc">🔧 機具：${equip}</div>
+      <div class="rc-desc" style="margin-top:2px;">📝 ${desc}</div>
+      ${gpsHtml}
+      <div style="margin-top:4px;">
+        <span class="rc-status ${_statusClass(status)}">${status}</span>${approveHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('report-result').style.display = '';
 }
 </script>
 </body>
