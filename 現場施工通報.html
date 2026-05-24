@@ -215,8 +215,10 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
 /* 開關 */
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
 .toggle{
-  appearance:none;width:50px;height:28px;background:#d1d5db;
-  border-radius:14px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;
+  appearance:none;-webkit-appearance:none;
+  width:50px;min-width:50px;height:28px;background:#d1d5db;
+  border-radius:14px;position:relative;cursor:pointer;transition:background .2s;
+  flex:0 0 50px;
 }
 .toggle:checked{background:var(--accent)}
 .toggle::before{
@@ -476,11 +478,22 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
               </select>
             </div>
           </div>
+          <div class="row2">
+            <div class="fg">
+              <label>行政區 <span style="color:var(--sub);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">選填</span></label>
+              <input type="text" id="f-district" placeholder="如：桃園區" oninput="updateLocation()">
+            </div>
+            <div class="fg">
+              <label>路名 <span style="color:var(--sub);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">選填</span></label>
+              <input type="text" id="f-road" placeholder="如：中正路" oninput="updateLocation()">
+            </div>
+          </div>
           <div class="fg">
-            <label>施工地點 GPS</label>
+            <label>施工地點 <span style="color:var(--sub);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">地址或 GPS 擇一填入</span></label>
+            <input type="text" id="f-location" placeholder="手動輸入地址（行政區+路名自動帶入）" style="margin-bottom:8px">
             <div class="gps-row">
-              <input type="text" id="f-gps" placeholder="緯度,經度（或按右方自動定位）" readonly>
-              <button class="btn-outline" onclick="doGPS()">📍 定位</button>
+              <input type="text" id="f-gps" placeholder="GPS 座標（選填）" readonly>
+              <button class="btn-outline btn-sm" onclick="doGPS()">📍 GPS</button>
             </div>
           </div>
         </div>
@@ -509,7 +522,7 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
           </div>
           <div class="fg">
             <div class="toggle-row">
-              <span style="font-size:15px;color:var(--text)">有無午休（12:00–13:00）</span>
+              <span>有無午休</span>
               <input type="checkbox" class="toggle" id="f-rest" checked>
             </div>
           </div>
@@ -994,6 +1007,17 @@ function loadProjectsFallback() {
     '<input type="text" id="f-project" placeholder="直接輸入專案名稱…">';
 }
 
+// ── 行政區+路名 → 自動帶入施工地點 ────────────
+function updateLocation() {
+  const district = (document.getElementById('f-district')?.value || '').trim();
+  const road     = (document.getElementById('f-road')?.value || '').trim();
+  const locEl    = document.getElementById('f-location');
+  if (locEl && (district || road)) {
+    locEl.value = [district, road].filter(Boolean).join('');
+  }
+}
+window.updateLocation = updateLocation;
+
 // ── GPS 定位 ─────────────────────────────────
 function doGPS() {
   if (!navigator.geolocation) { showToast('瀏覽器不支援 GPS'); return; }
@@ -1050,7 +1074,9 @@ async function submitReport() {
   const fd = {
     action:'submit', project, workDate:date,
     reportType: document.getElementById('f-type').value,
-    gps:   document.getElementById('f-gps').value,
+    gps:   document.getElementById('f-gps').value || document.getElementById('f-location')?.value || '',
+    district: document.getElementById('f-district')?.value || '',
+    road:     document.getElementById('f-road')?.value || '',
     equipment: document.getElementById('f-equip').value,
     personnel: document.getElementById('f-person').value,
     startTime: document.getElementById('f-start').value,
