@@ -317,13 +317,26 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
 .d3-vb:hover{border-color:#60a5fa;color:#60a5fa}
 
 /* ════════════════════════════════════════
-   快選晶片（機具 / 人員）
+   動態機具 / 人員列
 ════════════════════════════════════════ */
-.quick-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.qchip{padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);
-  background:var(--card2);color:var(--sub);font-size:13px;cursor:pointer;
-  transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
-.qchip:hover,.qchip:active{background:var(--accent);border-color:var(--accent);color:#fff}
+.item-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.item-row .item-name{flex:1;padding:10px 12px;border:1.5px solid var(--border);
+  border-radius:10px;background:var(--card);color:var(--text);font-size:14px;
+  transition:border-color .15s}
+.item-row .item-name:focus{border-color:var(--accent);outline:none}
+.item-row .item-qty{width:72px;padding:10px 8px;border:1.5px solid var(--border);
+  border-radius:10px;background:var(--card);color:var(--text);font-size:14px;
+  text-align:center;transition:border-color .15s}
+.item-row .item-qty:focus{border-color:var(--accent);outline:none}
+.item-row .btn-rm{width:32px;height:40px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card2);color:var(--sub);font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .15s,color .15s}
+.item-row .btn-rm:active{background:var(--danger-bg);color:var(--danger)}
+.btn-add-row{width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--border);
+  background:transparent;color:var(--accent);font-size:14px;font-weight:600;
+  cursor:pointer;transition:background .15s,border-color .15s;margin-top:2px}
+.btn-add-row:hover,.btn-add-row:active{background:var(--card2);border-color:var(--accent)}
 
 /* ════════════════════════════════════════
    Tab 3 — 通報記錄
@@ -515,31 +528,36 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
         <div class="card-body">
           <div class="fg">
             <label>施工機具清單</label>
-            <div class="quick-chips" id="equip-chips">
-              <span class="qchip" onclick="addChip('f-equip','怪手')">怪手</span>
-              <span class="qchip" onclick="addChip('f-equip','鏟土機')">鏟土機</span>
-              <span class="qchip" onclick="addChip('f-equip','3.5T卡車')">3.5T卡車</span>
-              <span class="qchip" onclick="addChip('f-equip','13.5T卡車')">13.5T卡車</span>
-              <span class="qchip" onclick="addChip('f-equip','17T卡車')">17T卡車</span>
-              <span class="qchip" onclick="addChip('f-equip','板車')">板車</span>
-              <span class="qchip" onclick="addChip('f-equip','水車')">水車</span>
-              <span class="qchip" onclick="addChip('f-equip','發電機')">發電機</span>
-              <span class="qchip" onclick="addChip('f-equip','切割機')">切割機</span>
-              <span class="qchip" onclick="addChip('f-equip','鐵板')">鐵板</span>
-              <span class="qchip" onclick="addChip('f-equip','蹦蹦跳')">蹦蹦跳</span>
-              <span class="qchip" onclick="addChip('f-equip','混凝土')">混凝土</span>
+            <div id="equip-rows">
+              <div class="item-row">
+                <input type="text" list="equipmentOptions" class="item-name" placeholder="選擇或輸入機具...">
+                <input type="text" class="item-qty" placeholder="數量">
+                <button class="btn-rm" onclick="removeItemRow(this)" title="刪除">✕</button>
+              </div>
             </div>
-            <textarea id="f-equip" placeholder="點上方晶片快選，或直接輸入（例：怪手 1 台、壓路機 1 台）" rows="3"></textarea>
+            <datalist id="equipmentOptions">
+              <option value="怪手"><option value="鏟土機">
+              <option value="3.5T卡車"><option value="13.5T卡車"><option value="17T卡車">
+              <option value="板車"><option value="水車"><option value="發電機">
+              <option value="切割機"><option value="鐵板"><option value="蹦蹦跳">
+              <option value="混凝土數量"><option value="壓路機"><option value="夯實機">
+            </datalist>
+            <button class="btn-add-row" onclick="addItemRow('equip-rows','equipmentOptions')">＋ 新增一筆機具</button>
           </div>
           <div class="fg">
             <label>施工人員清單</label>
-            <div class="quick-chips" id="person-chips">
-              <span class="qchip" onclick="addChip('f-person','台灣菁英工')">台灣菁英工</span>
-              <span class="qchip" onclick="addChip('f-person','越南大軍')">越南大軍</span>
-              <span class="qchip" onclick="addChip('f-person','義交')">義交</span>
-              <span class="qchip" onclick="addChip('f-person','怪手司機')">怪手司機</span>
+            <div id="person-rows">
+              <div class="item-row">
+                <input type="text" list="personnelOptions" class="item-name" placeholder="選擇或輸入人員...">
+                <input type="text" class="item-qty" placeholder="數量">
+                <button class="btn-rm" onclick="removeItemRow(this)" title="刪除">✕</button>
+              </div>
             </div>
-            <textarea id="f-person" placeholder="點上方晶片快選，或直接輸入（例：台灣菁英工 3 人）" rows="3"></textarea>
+            <datalist id="personnelOptions">
+              <option value="台灣菁英工"><option value="越南大軍">
+              <option value="義交"><option value="怪手司機">
+            </datalist>
+            <button class="btn-add-row" onclick="addItemRow('person-rows','personnelOptions')">＋ 新增一筆人員</button>
           </div>
           <div class="row2">
             <div class="fg">
@@ -1060,12 +1078,34 @@ function loadProjectsFallback() {
   _fillProjectSelects(PROJECT_LIST_FALLBACK);
 }
 
-// ── 機具 / 人員晶片快選 ──────────────────────
-function addChip(fieldId, value) {
-  const ta = document.getElementById(fieldId);
-  const cur = ta.value.trim();
-  ta.value = cur ? cur + '、' + value : value;
-  ta.focus();
+// ── 動態新增機具 / 人員列 ─────────────────────
+function addItemRow(containerId, listId) {
+  const wrap = document.getElementById(containerId);
+  const row  = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = `
+    <input type="text" list="${listId}" class="item-name" placeholder="${listId==='equipmentOptions'?'選擇或輸入機具...':'選擇或輸入人員...'}">
+    <input type="text" class="item-qty" placeholder="數量">
+    <button class="btn-rm" onclick="removeItemRow(this)" title="刪除">✕</button>`;
+  wrap.appendChild(row);
+  row.querySelector('.item-name').focus();
+}
+function removeItemRow(btn) {
+  const wrap = btn.closest('[id$="-rows"]');
+  if (wrap && wrap.querySelectorAll('.item-row').length > 1) {
+    btn.closest('.item-row').remove();
+  } else {
+    // 最後一列只清空不刪除
+    btn.closest('.item-row').querySelectorAll('input').forEach(i => i.value = '');
+  }
+}
+function _collectRows(containerId) {
+  return [...document.querySelectorAll(`#${containerId} .item-row`)]
+    .map(row => {
+      const name = row.querySelector('.item-name').value.trim();
+      const qty  = row.querySelector('.item-qty').value.trim();
+      return name ? (qty ? `${name} ${qty}` : name) : '';
+    }).filter(Boolean).join('、');
 }
 
 // ── 行政區+路名 → 自動帶入施工地點 ────────────
@@ -1138,8 +1178,8 @@ async function submitReport() {
     gps:   document.getElementById('f-gps').value || document.getElementById('f-location')?.value || '',
     district: document.getElementById('f-district')?.value || '',
     road:     document.getElementById('f-road')?.value || '',
-    equipment: document.getElementById('f-equip').value,
-    personnel: document.getElementById('f-person').value,
+    equipment: _collectRows('equip-rows'),
+    personnel: _collectRows('person-rows'),
     startTime: document.getElementById('f-start').value,
     endTime:   document.getElementById('f-end').value,
     rest:   document.getElementById('f-rest').checked ? '有' : '無',
