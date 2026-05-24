@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>工程現場管理系統 v2.0</title>
+<style>
+/* ══════════════════════════════════
+   CSS 變數 & 重置
+══════════════════════════════════ */
+:root{
+  --primary:#1a56db;--primary-d:#1e40af;
+  --success:#057a55;--success-bg:#def7ec;
+  --warning:#b45309;--warning-bg:#fef3c7;
+  --danger:#c81e1e;--danger-bg:#fde8e8;
+  --bg:#f3f4f6;--card:#fff;--border:#e5e7eb;
+  --text:#111827;--sub:#6b7280;--radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:'PingFang TC','Microsoft JhengHei',system-ui,sans-serif;font-size:15px}
+input,select,textarea,button{font-family:inherit;font-size:15px}
+a{color:var(--primary);text-decoration:none}
+button{cursor:pointer;border:none}
+
+/* ── 頂部列 ── */
+#navbar{
+  position:fixed;top:0;left:0;right:0;height:52px;
+  background:var(--primary);color:#fff;
+  display:flex;align-items:center;padding:0 16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:100;gap:10px;
+}
+#navbar h1{font-size:16px;font-weight:700;flex:1;letter-spacing:.5px}
+.nav-badge{font-size:11px;background:rgba(255,255,255,.2);
+  border-radius:20px;padding:3px 10px}
+
+/* ── 分頁列 ── */
+#tabs{
+  position:fixed;top:52px;left:0;right:0;
+  display:flex;background:#fff;
+  border-bottom:1px solid var(--border);z-index:90;
+}
+.tab-btn{
+  flex:1;padding:10px 0 9px;text-align:center;font-size:12px;
+  color:var(--sub);border-bottom:3px solid transparent;
+  transition:all .2s;background:none;cursor:pointer;
+}
+.tab-btn .ti{font-size:19px;display:block;margin-bottom:1px}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+
+/* ── 內容區 ── */
+#content{position:fixed;top:101px;bottom:0;left:0;right:0;overflow:hidden}
+.panel{position:absolute;inset:0;overflow-y:auto;display:none;
+  -webkit-overflow-scrolling:touch}
+.panel.active{display:block}
+.panel::-webkit-scrollbar{width:4px}
+.panel::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:2px}
+
+/* ── 通用元件 ── */
+.pg{padding:16px}
+.card{background:var(--card);border-radius:var(--radius);
+  box-shadow:0 1px 5px rgba(0,0,0,.07);margin-bottom:12px;overflow:hidden}
+.card-head{padding:11px 16px;font-weight:700;font-size:14px;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;
+  background:#f9fafb;color:#374151}
+.card-body{padding:14px 16px}
+
+.fg{margin-bottom:13px}
+.fg:last-child{margin-bottom:0}
+.fg label{display:block;font-size:11px;color:var(--sub);font-weight:700;
+  margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg select,.fg textarea{
+  width:100%;padding:11px 13px;
+  border:1.5px solid var(--border);border-radius:9px;
+  background:#fff;color:var(--text);font-size:15px;
+  transition:border-color .15s;
+}
+.fg input:focus,.fg select:focus,.fg textarea:focus{
+  outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,86,219,.08)}
+.fg textarea{resize:vertical;min-height:80px;line-height:1.5}
+.fg select{appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:20px;
+  padding-right:36px}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.gps-row{display:flex;gap:8px}
+.gps-row input{flex:1;min-width:0}
+
+.btn{padding:13px 20px;border-radius:10px;font-weight:700;font-size:15px;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .15s;cursor:pointer;border:none}
+.btn-primary{background:var(--primary);color:#fff;width:100%}
+.btn-primary:hover{background:var(--primary-d)}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{background:#9ca3af;cursor:not-allowed;transform:none}
+.btn-outline{background:#fff;color:var(--primary);
+  border:1.5px solid var(--primary);padding:10px 14px;font-size:13px;border-radius:9px}
+.btn-sm{padding:9px 16px;font-size:13px;border-radius:8px}
+
+/* 開關 */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
+.toggle{appearance:none;width:50px;height:28px;background:#d1d5db;
+  border-radius:14px;position:relative;cursor:pointer;transition:background .2s}
+.toggle:checked{background:var(--primary)}
+.toggle::before{content:'';position:absolute;width:22px;height:22px;
+  background:#fff;border-radius:50%;top:3px;left:3px;
+  transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle:checked::before{transform:translateX(22px)}
+
+/* 照片上傳 */
+.photo-zone{border:2px dashed var(--border);border-radius:10px;
+  padding:16px;text-align:center;cursor:pointer;transition:all .2s;background:#f9fafb}
+.photo-zone:hover{border-color:var(--primary);background:#eff6ff}
+.photo-zone .pz-ico{font-size:26px}
+.photo-zone p{font-size:12px;color:var(--sub);margin-top:5px}
+.photo-preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.del-photo{position:relative;display:inline-block;width:72px;height:72px;cursor:pointer}
+.del-photo img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
+.del-photo::after{content:"✕";position:absolute;top:2px;right:2px;
+  background:rgba(0,0,0,.55);color:#fff;width:20px;height:20px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700}
+
+/* 訊息框 */
+.msg{border-radius:9px;padding:11px 14px;margin-bottom:12px;
+  font-size:13px;line-height:1.6}
+.msg-blue{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.msg-red{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.msg-green{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+.msg-yellow{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+
+/* 狀態徽章 */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;
+  border-radius:20px;font-size:12px;font-weight:600}
+.b-approve{background:var(--success-bg);color:var(--success)}
+.b-pending{background:var(--warning-bg);color:var(--warning)}
+.b-reject{background:var(--danger-bg);color:var(--danger)}
+.b-none{background:#f3f4f6;color:var(--sub)}
+
+/* ══════════════════════════════════
+   Tab 2 — 3D 模擬
+══════════════════════════════════ */
+#panel-3d{background:#111827;color:#e5e7eb}
+#d3-layout{display:flex;height:100%}
+#d3-side{
+  width:235px;min-width:235px;background:#1f2937;
+  border-right:1px solid #374151;overflow-y:auto;padding:12px;
+}
+#d3-side::-webkit-scrollbar{width:4px}
+#d3-side::-webkit-scrollbar-thumb{background:#374151}
+#d3-side h2{font-size:12px;color:#60a5fa;font-weight:700;letter-spacing:.8px;
+  padding-bottom:6px;border-bottom:1px solid #374151;margin-bottom:10px}
+#d3-vp{flex:1;position:relative;overflow:hidden}
+#d3-vp canvas{display:block}
+.d3-sec{font-size:11px;color:#60a5fa;font-weight:700;letter-spacing:.6px;
+  margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid #374151}
+.d3-fg{margin-bottom:7px}
+.d3-fg label{display:block;font-size:11px;color:#9ca3af;margin-bottom:3px}
+.d3-fg input,.d3-fg select{
+  width:100%;padding:5px 8px;font-size:12px;font-family:inherit;
+  background:#111827;border:1px solid #374151;border-radius:5px;color:#e5e7eb}
+.d3-fg input:focus,.d3-fg select:focus{outline:none;border-color:#60a5fa}
+.d3-g2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.d3-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.d3-type{display:flex;gap:5px;margin-bottom:10px}
+.d3-tbtn{flex:1;padding:6px 2px;font-size:11px;font-family:inherit;
+  background:#111827;border:1px solid #374151;border-radius:4px;
+  color:#9ca3af;cursor:pointer;transition:all .15s}
+.d3-tbtn.active{background:#1d4ed8;border-color:#3b82f6;color:#fff;font-weight:700}
+.d3-gen{width:100%;padding:9px;background:#2563eb;color:#fff;
+  border-radius:5px;font-weight:700;font-size:13px;margin:6px 0;
+  border:none;cursor:pointer;font-family:inherit}
+.d3-gen:hover{background:#1d4ed8}
+.d3-row2{display:flex;gap:5px}
+.d3-row2 button{flex:1;padding:6px;font-size:11px;background:#374151;
+  color:#d1d5db;border-radius:4px;border:1px solid #4b5563;
+  cursor:pointer;font-family:inherit}
+.d3-cr{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.d3-sw{width:16px;height:16px;border-radius:3px;
+  border:1px solid rgba(255,255,255,.15);flex-shrink:0}
+.d3-cr span{font-size:11px;color:#9ca3af;flex:1}
+.d3-cr input[type=color]{width:28px;height:21px;padding:0 2px;
+  background:#111827;border:1px solid #374151;border-radius:3px;cursor:pointer}
+#d3-leg{position:absolute;bottom:10px;left:10px;
+  background:rgba(31,41,55,.9);border:1px solid #374151;
+  border-radius:6px;padding:8px 12px}
+#d3-leg h4{color:#60a5fa;font-weight:700;font-size:11px;margin-bottom:5px}
+.d3-li{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.d3-ld{width:12px;height:12px;border-radius:2px;flex-shrink:0}
+#d3-vbtns{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:4px;z-index:10}
+.d3-vb{padding:5px 10px;background:rgba(31,41,55,.85);border:1px solid #374151;
+  color:#9ca3af;font-size:11px;border-radius:4px;cursor:pointer;font-family:inherit}
+.d3-vb:hover{border-color:#60a5fa;color:#60a5fa}
+
+/* ══════════════════════════════════
+   Tab 3 — 通報記錄
+══════════════════════════════════ */
+.rec-bar{display:flex;gap:8px;margin-bottom:12px}
+.rec-bar input{flex:1;padding:11px 13px;border:1.5px solid var(--border);
+  border-radius:9px;font-size:15px;background:#fff}
+.rec-bar input:focus{outline:none;border-color:var(--primary)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.stat-c{border-radius:10px;padding:10px 8px;text-align:center}
+.stat-c .sn{font-size:24px;font-weight:700}
+.stat-c .sl{font-size:11px}
+.rec-card{background:#fff;border-radius:var(--radius);
+  box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:10px;
+  overflow:hidden;border-left:4px solid var(--border)}
+.rec-card.approve{border-left-color:#057a55}
+.rec-card.reject{border-left-color:#c81e1e}
+.rec-card.pending{border-left-color:#b45309}
+.rch{padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start}
+.rch-title{font-weight:700;font-size:15px}
+.rch-sub{font-size:12px;color:var(--sub);margin-top:2px}
+.rcb{padding:0 14px 12px}
+.rc-info{font-size:13px;color:var(--sub);line-height:1.9}
+.rc-info strong{color:var(--text)}
+
+/* ══════════════════════════════════
+   全域 Overlay / Toast
+══════════════════════════════════ */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
+  display:none;align-items:center;justify-content:center;z-index:200}
+.spin-big{width:48px;height:48px;border:4px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(100px);
+  background:#1f2937;color:#fff;padding:12px 22px;border-radius:10px;
+  font-size:14px;z-index:300;transition:transform .3s;
+  white-space:nowrap;max-width:90vw;text-align:center;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ══════════════════════════════════
+   設定提示橫幅
+══════════════════════════════════ */
+#setup-banner{background:#fef3c7;border-bottom:2px solid #f59e0b;
+  padding:10px 16px;font-size:12px;color:#78350f;line-height:1.6;
+  position:fixed;top:101px;left:0;right:0;z-index:80;display:none}
+</style>
+</head>
+<body>
+
+<!-- ══ 頂部列 ══ -->
+<div id="navbar">
+  <h1>🏗️ 工程現場管理系統</h1>
+  <span class="nav-badge">v2.0</span>
+</div>
+
+<!-- ══ 分頁列 ══ -->
+<div id="tabs">
+  <button class="tab-btn active" onclick="switchTab('report')">
+    <span class="ti">📋</span>施工通報
+  </button>
+  <button class="tab-btn" onclick="switchTab('3d')">
+    <span class="ti">🏗️</span>3D 模擬
+  </button>
+  <button class="tab-btn" onclick="switchTab('records')">
+    <span class="ti">📊</span>通報記錄
+  </button>
+</div>
+
+<!-- 設定提示（GAS URL 未填時顯示）-->
+<div id="setup-banner">
+  ⚙️ <strong>部署提示：</strong>請先部署 GAS_API.gs 後，將網址填入程式碼 <code>GAS_API_URL</code> 變數。
+  <a href="#" onclick="document.getElementById('setup-banner').style.display='none';return false">✕ 關閉</a>
+</div>
+
+<!-- ══ 內容區 ══ -->
+<div id="content">
+
+  <!-- ═════════════ Tab 1：施工通報 ═════════════ -->
+  <div class="panel active" id="panel-report">
+    <div class="pg">
+
+      <div class="card">
+        <div class="card-head">📌 基本資訊</div>
+        <div class="card-body">
+          <div class="fg">
+            <label>專案名稱</label>
+            <select id="f-project">
+              <option value="">— 載入中 —</option>
+            </select>
+          </div>
+          <div class="row2">
+            <div class="fg">
+              <label>施工日期</label>
+              <input type="date" id="f-date">
+            </div>
+            <div class="fg">
+              <label>通報類型</label>
+              <select id="f-type">
+                <option value="開工通知">開工通知</option>
+                <option value="日報">日報</option>
+                <option value="竣工">竣工</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label>施工地點 GPS</label>
+            <div class="gps-row">
+              <input type="text" id="f-gps" placeholder="緯度,經度（或按右方自動定位）" readonly>
+              <button class="btn-outline" onclick="doGPS()">📍 定位</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">👷 人員機具</div>
+        <div class="card-body">
+          <div class="fg">
+            <label>施工機具清單</label>
+            <textarea id="f-equip" placeholder="例：怪手 1 台、壓路機 1 台" rows="3"></textarea>
+          </div>
+          <div class="fg">
+            <label>施工人員清單</label>
+            <textarea id="f-person" placeholder="例：王小明（主任）、陳大偉（工班長）" rows="3"></textarea>
+          </div>
+          <div class="row2">
+            <div class="fg">
+              <label>施工開始時間</label>
+              <input type="time" id="f-start" value="08:00">
+            </div>
+            <div class="fg">
+              <label>施工結束時間</label>
+              <input type="time" id="f-end" value="17:00">
+            </div>
+          </div>
+          <div class="fg">
+            <div class="toggle-row">
+              <span style="font-size:15px;color:var(--text)">有無午休（12:00–13:00）</span>
+              <input type="checkbox" class="toggle" id="f-rest" checked>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">📝 工作描述</div>
+        <div class="card-body">
+          <div class="fg">
+            <label>工作內容說明</label>
+            <textarea id="f-desc" placeholder="詳述今日施工項目、進度、特殊狀況等..." rows="5"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">📷 施工照片</div>
+        <div class="card-body">
+          <div class="fg">
+            <label>勤前教育照片</label>
+            <div class="photo-zone" onclick="triggerPhoto('pre')">
+              <div class="pz-ico">🖼️</div>
+              <p>點擊上傳或拍照（可多張）</p>
+            </div>
+            <div class="photo-preview" id="prev-pre"></div>
+            <input type="file" id="fi-pre" accept="image/*" multiple style="display:none" onchange="handlePhotos(this,'pre')">
+          </div>
+          <div class="fg">
+            <label>交維佈設照片</label>
+            <div class="photo-zone" onclick="triggerPhoto('traffic')">
+              <div class="pz-ico">🦺</div>
+              <p>點擊上傳或拍照（可多張）</p>
+            </div>
+            <div class="photo-preview" id="prev-traffic"></div>
+            <input type="file" id="fi-traffic" accept="image/*" multiple style="display:none" onchange="handlePhotos(this,'traffic')">
+          </div>
+          <div class="fg">
+            <label>施工過程照片</label>
+            <div class="photo-zone" onclick="triggerPhoto('process')">
+              <div class="pz-ico">⚙️</div>
+              <p>點擊上傳或拍照（可多張）</p>
+            </div>
+            <div class="photo-preview" id="prev-process"></div>
+            <input type="file" id="fi-process" accept="image/*" multiple style="display:none" onchange="handlePhotos(this,'process')">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-submit" onclick="submitReport()">
+        📤 提交施工通報
+      </button>
+      <div style="height:20px"></div>
+    </div>
+  </div>
+
+  <!-- ═════════════ Tab 2：3D 模擬 ═════════════ -->
+  <div class="panel" id="panel-3d">
+    <div id="d3-layout">
+      <div id="d3-side">
+        <h2>工程 3D 模擬</h2>
+        <div class="d3-type">
+          <button class="d3-tbtn active" id="d3t-road"     onclick="d3Type('road')">道路</button>
+          <button class="d3-tbtn"        id="d3t-ditch"    onclick="d3Type('ditch')">水溝</button>
+          <button class="d3-tbtn"        id="d3t-sidewalk" onclick="d3Type('sidewalk')">人行道</button>
+        </div>
+
+        <!-- 道路 -->
+        <div id="d3p-road">
+          <div class="d3-sec">鋪面類型</div>
+          <div class="d3-fg">
+            <select id="d3-pave" onchange="d3PaveChange()">
+              <option value="flex">柔性鋪面（瀝青混凝土）</option>
+              <option value="rigid">剛性鋪面（混凝土）</option>
+            </select>
+          </div>
+          <div class="d3-sec">尺寸 (m)</div>
+          <div class="d3-g2">
+            <div class="d3-fg"><label>路面寬 W</label><input type="number" id="d3-rW" value="7" min="1" step="0.5"></div>
+            <div class="d3-fg"><label>長度 L</label><input type="number" id="d3-rL" value="10" min="1" step="1"></div>
+          </div>
+          <div class="d3-g3">
+            <div class="d3-fg"><label id="d3-rt1l">面層厚</label><input type="number" id="d3-rt1" value="0.05" min="0.01" step="0.01"></div>
+            <div class="d3-fg"><label>底層厚</label><input type="number" id="d3-rt2" value="0.15" min="0.05" step="0.01"></div>
+            <div class="d3-fg"><label>路基厚</label><input type="number" id="d3-rt3" value="0.30" min="0.10" step="0.01"></div>
+          </div>
+          <div class="d3-fg"><label>路拱橫坡 (%)</label><input type="number" id="d3-rcrown" value="2" min="0" max="5" step="0.5"></div>
+          <div class="d3-sec">顏色</div>
+          <div class="d3-cr"><div class="d3-sw" id="dsw-r1" style="background:#2d2d2d"></div><span id="d3-rc1n">面層（瀝青）</span><input type="color" id="d3-rc1" value="#2d2d2d" oninput="d3Sw('dsw-r1',this.value)"></div>
+          <div class="d3-cr"><div class="d3-sw" id="dsw-r2" style="background:#7c5a1e"></div><span>底層（級配）</span><input type="color" id="d3-rc2" value="#7c5a1e" oninput="d3Sw('dsw-r2',this.value)"></div>
+          <div class="d3-cr"><div class="d3-sw" id="dsw-r3" style="background:#6b7280"></div><span>路基</span><input type="color" id="d3-rc3" value="#6b7280" oninput="d3Sw('dsw-r3',this.value)"></div>
+        </div>
+
+        <!-- 水溝 -->
+        <div id="d3p-ditch" style="display:none">
+          <div class="d3-sec">斷面型式</div>
+          <div class="d3-fg">
+            <select id="d3-dtype">
+              <option value="rect">矩形溝</option>
+              <option value="utype">U 型溝</option>
+            </select>
+          </div>
+          <div class="d3-sec">尺寸 (m)</div>
+          <div class="d3-g2">
+            <div class="d3-fg"><label>內寬 B</label><input type="number" id="d3-dbw" value="0.60" min="0.10" step="0.05"></div>
+            <div class="d3-fg"><label>深度 H</label><input type="number" id="d3-dH" value="0.50" min="0.10" step="0.05"></div>
+          </div>
+          <div class="d3-g2">
+            <div class="d3-fg"><label>壁厚 t</label><input type="number" id="d3-dwall" value="0.10" min="0.05" step="0.01"></div>
+            <div class="d3-fg"><label>長度 L</label><input type="number" id="d3-dL" value="10" min="1" step="1"></div>
+          </div>
+          <div class="d3-sec">顏色</div>
+          <div class="d3-cr"><div class="d3-sw" id="dsw-d1" style="background:#9ca3af"></div><span>溝體（混凝土）</span><input type="color" id="d3-dc1" value="#9ca3af" oninput="d3Sw('dsw-d1',this.value)"></div>
+        </div>
+
+        <!-- 人行道 -->
+        <div id="d3p-sidewalk" style="display:none">
+          <div class="d3-sec">鋪面材質</div>
+          <div class="d3-fg">
+            <select id="d3-swmat" onchange="d3SwMat()">
+              <option value="brick_hp">高壓混凝土磚</option>
+              <option value="brick_tw">透水磚</option>
+              <option value="stamped">壓花混凝土</option>
+              <option value="stone">石板（花崗岩）</option>
+              <option value="asphalt">透水瀝青</option>
+            </select>
+          </div>
+          <div class="d3-sec">尺寸 (m)</div>
+          <div class="d3-g2">
+            <div class="d3-fg"><label>寬度 W</label><input type="number" id="d3-swW" value="2.0" min="1.5" step="0.5"></div>
+            <div class="d3-fg"><label>長度 L</label><input type="number" id="d3-swL" value="10" min="1" step="1"></div>
+          </div>
+          <div class="d3-g3">
+            <div class="d3-fg"><label id="d3-swt1l">面層厚</label><input type="number" id="d3-swt1" value="0.06" min="0.02" step="0.01"></div>
+            <div class="d3-fg"><label>底層厚</label><input type="number" id="d3-swt2" value="0.15" min="0.05" step="0.01"></div>
+            <div class="d3-fg"><label>路基厚</label><input type="number" id="d3-swt3" value="0.20" min="0.10" step="0.01"></div>
+          </div>
+          <div class="d3-fg"><label>排水橫坡 (%)</label><input type="number" id="d3-swslope" value="2" min="1" max="5" step="0.5"></div>
+          <div class="d3-sec">顏色</div>
+          <div class="d3-cr"><div class="d3-sw" id="dsw-s1" style="background:#e57373"></div><span id="d3-swc1n">面層</span><input type="color" id="d3-swc1" value="#e57373" oninput="d3Sw('dsw-s1',this.value)"></div>
+          <div class="d3-cr"><div class="d3-sw" id="dsw-s2" style="background:#78634a"></div><span>底層</span><input type="color" id="d3-swc2" value="#78634a" oninput="d3Sw('dsw-s2',this.value)"></div>
+          <div class="d3-cr"><div class="d3-sw" id="dsw-s3" style="background:#6b7280"></div><span>路基</span><input type="color" id="d3-swc3" value="#6b7280" oninput="d3Sw('dsw-s3',this.value)"></div>
+        </div>
+
+        <button class="d3-gen" onclick="d3Gen()">▶ 產生 3D 模型</button>
+        <div class="d3-row2">
+          <button onclick="d3Clear()">重置</button>
+          <button onclick="d3Export()">匯出 PNG</button>
+        </div>
+        <div style="font-size:10px;color:#4b5563;text-align:center;margin-top:8px">
+          左鍵旋轉　右鍵平移　滾輪縮放
+        </div>
+      </div>
+      <div id="d3-vp">
+        <div id="d3-vbtns">
+          <button class="d3-vb" onclick="d3View('iso')">等角</button>
+          <button class="d3-vb" onclick="d3View('top')">俯視</button>
+          <button class="d3-vb" onclick="d3View('front')">正視</button>
+          <button class="d3-vb" onclick="d3View('side')">側視</button>
+        </div>
+        <div id="d3-leg">
+          <h4>圖例</h4>
+          <div id="d3-leg-items"><span style="font-size:11px;color:#6b7280">尚未產生</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════════ Tab 3：通報記錄 ═════════════ -->
+  <div class="panel" id="panel-records">
+    <div class="pg">
+      <div class="msg msg-blue">
+        💡 輸入專案名稱查詢歷史通報記錄與審核狀態。<br>
+        ⚙️ 需先將
+        <a href="https://docs.google.com/spreadsheets/d/1TvftRdCuEoxVlOilusFbdC4jx3vh5iPnNWFjos6nBVQ" target="_blank">通報試算表</a>
+        設為「任何人可檢視」才能讀取。
+      </div>
+      <div class="rec-bar">
+        <input type="text" id="rec-proj" placeholder="輸入專案名稱…" onkeydown="if(event.key==='Enter')loadRecs()">
+        <button class="btn btn-primary btn-sm" onclick="loadRecs()">查詢</button>
+      </div>
+      <div id="rec-loading" style="display:none;text-align:center;padding:30px;color:var(--sub)">
+        <div style="font-size:32px;animation:spin .8s linear infinite;display:inline-block">⟳</div>
+        <div style="margin-top:8px">載入中…</div>
+      </div>
+      <div id="rec-err" class="msg msg-red" style="display:none"></div>
+      <div id="rec-stats" style="display:none"></div>
+      <div id="rec-list"></div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<div id="overlay"><div class="spin-big"></div></div>
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     Three.js 模組
+══════════════════════════════════════════ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const vp = document.getElementById('d3-vp');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+vp.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111827);
+scene.fog = new THREE.Fog(0x111827, 80, 200);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 500);
+camera.position.set(12, 9, 18);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const sun = new THREE.DirectionalLight(0xfff8f0, 0.9);
+sun.position.set(15, 25, 10); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -50; sun.shadow.camera.right = 50;
+sun.shadow.camera.top = 50;   sun.shadow.camera.bottom = -50;
+scene.add(sun);
+scene.add(new THREE.GridHelper(100, 100, 0x1f2d3d, 0x1a2535));
+scene.add(new THREE.AxesHelper(3));
+
+let grp = new THREE.Group(); scene.add(grp);
+
+function onResize() {
+  if (!vp.clientWidth) return;
+  camera.aspect = vp.clientWidth / vp.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(vp.clientWidth, vp.clientHeight);
+}
+window.addEventListener('resize', onResize); onResize();
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+
+function hx(h) { return new THREE.Color(parseInt(h.replace('#',''), 16)); }
+function mt(c, r=0.8) { return new THREE.MeshStandardMaterial({color:hx(c),roughness:r,metalness:.05,side:THREE.DoubleSide}); }
+function eg(geo, parent) { parent.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,15), new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.25}))); }
+function gv(id) { return parseFloat(document.getElementById(id)?.value) || 0; }
+function gs(id) { return document.getElementById(id)?.value || ''; }
+function cam(cx,cy,cz,sz) { const d=sz*2.2; controls.target.set(cx,cy,cz); camera.position.set(cx+d*.7,cy+d*.6,cz+d); camera.lookAt(cx,cy,cz); controls.update(); }
+
+function setLeg(items) {
+  document.getElementById('d3-leg-items').innerHTML = items.map(it =>
+    `<div class="d3-li"><div class="d3-ld" style="background:${it.c}"></div><span style="font-size:11px;color:#d1d5db">${it.n}</span></div>`
+  ).join('');
+}
+
+function buildRoad() {
+  const W=gv('d3-rW'),L=gv('d3-rL'),t1=gv('d3-rt1'),t2=gv('d3-rt2'),t3=gv('d3-rt3');
+  const crown=gv('d3-rcrown')/100, ch=(W/2)*crown;
+  const c1=gs('d3-rc1'),c2=gs('d3-rc2'),c3=gs('d3-rc3');
+  const ext={depth:L,bevelEnabled:false};
+  [new THREE.BoxGeometry(W,t3,L), new THREE.BoxGeometry(W,t2,L)].forEach((g,i) => {
+    const m=new THREE.Mesh(g,mt(i?c2:c3,.9)); m.position.y=i?(t3+t2/2):(t3/2); m.castShadow=true; grp.add(m); eg(g,m);
+  });
+  [[-W/2,0,0,ch,0,ch-t1,-W/2,-t1],[0,ch,W/2,0,W/2,-t1,0,ch-t1]].forEach(pts => {
+    const sh=new THREE.Shape([new THREE.Vector2(pts[0],pts[1]),new THREE.Vector2(pts[2],pts[3]),new THREE.Vector2(pts[4],pts[5]),new THREE.Vector2(pts[6],pts[7])]);
+    const g=new THREE.ExtrudeGeometry(sh,ext);
+    const m=new THREE.Mesh(g,mt(c1,.7)); m.position.set(0,t3+t2,-L/2); m.castShadow=true; grp.add(m); eg(g,m);
+  });
+  const pave=gs('d3-pave');
+  setLeg([{c:c1,n:pave==='rigid'?'面版（混凝土）':'面層（瀝青）'},{c:c2,n:'底層（級配）'},{c:c3,n:'路基'}]);
+  cam(0,(t3+t2+t1+ch)/2,0,Math.max(W,L));
+}
+
+function buildDitch() {
+  const bW=gv('d3-dbw'),H=gv('d3-dH'),L=gv('d3-dL'),wall=gv('d3-dwall'),c1=gs('d3-dc1');
+  const oW=bW+2*wall, oH=H+wall;
+  const sh=new THREE.Shape(); sh.moveTo(-oW/2,0); sh.lineTo(oW/2,0); sh.lineTo(oW/2,oH); sh.lineTo(-oW/2,oH); sh.closePath();
+  const hole=new THREE.Path(); hole.moveTo(-bW/2,wall); hole.lineTo(bW/2,wall); hole.lineTo(bW/2,oH); hole.lineTo(-bW/2,oH); hole.closePath();
+  sh.holes.push(hole);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
+  const m=new THREE.Mesh(g,mt(c1,.85)); m.position.set(0,0,-L/2); grp.add(m); eg(g,m);
+  setLeg([{c:c1,n:'溝體（混凝土）'}]);
+  cam(0,oH/2,0,Math.max(oW*2,L));
+}
+
+function buildSidewalk() {
+  const W=gv('d3-swW'),L=gv('d3-swL'),t1=gv('d3-swt1'),t2=gv('d3-swt2'),t3=gv('d3-swt3');
+  const slop=gv('d3-swslope')/100, sH=W*slop;
+  const c1=gs('d3-swc1'),c2=gs('d3-swc2'),c3=gs('d3-swc3');
+  [new THREE.BoxGeometry(W,t3,L), new THREE.BoxGeometry(W,t2,L)].forEach((g,i) => {
+    const m=new THREE.Mesh(g,mt(i?c2:c3,.9)); m.position.y=i?(t3+t2/2):(t3/2); grp.add(m); eg(g,m);
+  });
+  const sh=new THREE.Shape([new THREE.Vector2(-W/2,sH),new THREE.Vector2(W/2,0),new THREE.Vector2(W/2,-t1),new THREE.Vector2(-W/2,sH-t1)]);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
+  const m=new THREE.Mesh(g,mt(c1,.8)); m.position.set(0,t3+t2,-L/2); grp.add(m); eg(g,m);
+  setLeg([{c:c1,n:'面層'},{c:c2,n:'底層'},{c:c3,n:'路基'}]);
+  cam(0,(t3+t2+t1+sH)/2,0,Math.max(W,L));
+}
+
+window.d3Gen = function() {
+  grp.clear();
+  const t = document.querySelector('.d3-tbtn.active')?.id.replace('d3t-','');
+  if (t==='road')     buildRoad();
+  else if (t==='ditch')    buildDitch();
+  else if (t==='sidewalk') buildSidewalk();
+};
+window.d3View = function(v) {
+  const t=controls.target.clone(), d=camera.position.distanceTo(t);
+  ({iso:()=>camera.position.set(t.x+d*.6,t.y+d*.55,t.z+d*.8),
+    top:()=>camera.position.set(t.x,t.y+d,t.z+.001),
+    front:()=>camera.position.set(t.x,t.y+d*.1,t.z+d),
+    side:()=>camera.position.set(t.x+d,t.y+d*.1,t.z)})[v]?.();
+  camera.lookAt(t); controls.update();
+};
+window.d3Export = function() {
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download=`工程模擬_${new Date().toISOString().slice(0,10)}.png`;
+  a.href=renderer.domElement.toDataURL(); a.click();
+};
+window.d3Clear = function() {
+  grp.clear();
+  document.getElementById('d3-leg-items').innerHTML='<span style="font-size:11px;color:#6b7280">尚未產生</span>';
+};
+window._d3Resize = () => setTimeout(onResize, 50);
+</script>
+
+<!-- ══════════════════════════════════════════
+     主程式
+══════════════════════════════════════════ -->
+<script>
+// ════════════════════════════════════════════
+//  ⚙️  部署後請將 GAS API 部署網址填入下方
+// ════════════════════════════════════════════
+const GAS_API_URL = '';   // ← 填入您的 GAS 部署網址，例：https://script.google.com/macros/s/AKfycb.../exec
+const SHEETS_ID   = '1TvftRdCuEoxVlOilusFbdC4jx3vh5iPnNWFjos6nBVQ';
+
+// ── 初始化 ─────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f-date').valueAsDate = new Date();
+  if (!GAS_API_URL) {
+    document.getElementById('setup-banner').style.display = 'block';
+    document.getElementById('content').style.top = '145px';
+    loadProjectsFallback();
+  } else {
+    loadProjects();
+  }
+});
+
+// ── 分頁切換 ──────────────────────────────
+function switchTab(name) {
+  ['report','3d','records'].forEach((n,i) => {
+    document.getElementById('panel-'+n).classList.toggle('active', n===name);
+    document.querySelectorAll('.tab-btn')[i].classList.toggle('active', n===name);
+  });
+  if (name==='3d' && window._d3Resize) window._d3Resize();
+}
+window.switchTab = switchTab;
+
+// ── 3D 控制 ─────────────────────────────────
+function d3Type(t) {
+  ['road','ditch','sidewalk'].forEach(k => {
+    document.getElementById('d3p-'+k).style.display = k===t ? '' : 'none';
+    document.getElementById('d3t-'+k).classList.toggle('active', k===t);
+  });
+}
+function d3Sw(id,v) { const el=document.getElementById(id); if(el) el.style.background=v; }
+function d3PaveChange() {
+  const v=document.getElementById('d3-pave').value, r=v==='rigid';
+  document.getElementById('d3-rt1l').textContent = r ? '面版厚' : '面層厚';
+  document.getElementById('d3-rc1n').textContent = r ? '面層（混凝土）' : '面層（瀝青）';
+  document.getElementById('d3-rc1').value = r ? '#c0c0c0' : '#2d2d2d';
+  d3Sw('dsw-r1', r ? '#c0c0c0' : '#2d2d2d');
+  document.getElementById('d3-rt1').value = r ? 0.20 : 0.05;
+}
+const SW_PRE = {
+  brick_hp:{n:'高壓混凝土磚',c:'#c0392b',t1:'.06',t2:'.03',t3:'.15'},
+  brick_tw:{n:'透水磚',c:'#e07b39',t1:'.06',t2:'.15',t3:'.20'},
+  stamped:{n:'壓花混凝土',c:'#d4845a',t1:'.10',t2:'.10',t3:'.20'},
+  stone:{n:'石板（花崗岩）',c:'#9ea6ad',t1:'.025',t2:'.03',t3:'.15'},
+  asphalt:{n:'透水瀝青',c:'#3d4451',t1:'.04',t2:'.15',t3:'.20'},
+};
+function d3SwMat() {
+  const p=SW_PRE[document.getElementById('d3-swmat').value]; if(!p) return;
+  document.getElementById('d3-swc1n').textContent='面層（'+p.n+'）';
+  document.getElementById('d3-swc1').value=p.c; d3Sw('dsw-s1',p.c);
+  ['t1','t2','t3'].forEach(k => document.getElementById('d3-sw'+k).value=p[k]);
+}
+window.d3Type=d3Type; window.d3Sw=d3Sw;
+window.d3PaveChange=d3PaveChange; window.d3SwMat=d3SwMat;
+
+// ── 載入專案清單 ─────────────────────────────
+async function loadProjects() {
+  try {
+    const res  = await fetch(GAS_API_URL + '?action=projects');
+    const data = await res.json();
+    const sel  = document.getElementById('f-project');
+    if (data.ok && data.data.length) {
+      sel.innerHTML = '<option value="">— 請選擇專案 —</option>' +
+        data.data.map(p => `<option value="${p}">${p}</option>`).join('');
+    } else {
+      loadProjectsFallback();
+    }
+  } catch (e) {
+    loadProjectsFallback();
+  }
+}
+function loadProjectsFallback() {
+  // GAS 未設定或失敗時，改用文字輸入
+  const container = document.getElementById('f-project').parentElement;
+  container.innerHTML = '<label>專案名稱</label>' +
+    '<input type="text" id="f-project" placeholder="直接輸入專案名稱…">';
+}
+
+// ── GPS 定位 ─────────────────────────────────
+function doGPS() {
+  if (!navigator.geolocation) { showToast('瀏覽器不支援 GPS'); return; }
+  showToast('定位中…');
+  navigator.geolocation.getCurrentPosition(
+    p => {
+      document.getElementById('f-gps').value = `${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;
+      showToast('✅ 定位成功');
+    },
+    e => showToast('❌ 定位失敗：' + (e.message || '請允許位置存取'))
+  );
+}
+window.doGPS = doGPS;
+
+// ── 照片處理 ─────────────────────────────────
+const photos = { pre: [], traffic: [], process: [] };
+
+function triggerPhoto(cat) { document.getElementById('fi-'+cat).click(); }
+
+function handlePhotos(input, cat) {
+  const files = [...input.files];
+  let done = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      photos[cat].push({ name: file.name, mimeType: file.type, base64: e.target.result.split(',')[1], cat });
+      renderPrev(cat);
+      if (++done === files.length) showToast(`已加入 ${files.length} 張照片`);
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+function renderPrev(cat) {
+  document.getElementById('prev-'+cat).innerHTML = photos[cat].map((p,i) => {
+    return `<div class="del-photo" onclick="removePhoto('${cat}',${i})"><img src="data:${p.mimeType};base64,${p.base64}"></div>`;
+  }).join('');
+}
+function removePhoto(cat, idx) { photos[cat].splice(idx,1); renderPrev(cat); }
+window.triggerPhoto=triggerPhoto; window.handlePhotos=handlePhotos; window.removePhoto=removePhoto;
+
+// ── 提交通報 ─────────────────────────────────
+async function submitReport() {
+  const project = document.getElementById('f-project').value?.trim() || '';
+  const date    = document.getElementById('f-date').value;
+  const desc    = document.getElementById('f-desc').value.trim();
+
+  if (!project) { showToast('⚠️ 請填寫專案名稱'); return; }
+  if (!date)    { showToast('⚠️ 請填寫施工日期'); return; }
+  if (!desc)    { showToast('⚠️ 請填寫工作內容描述'); return; }
+  if (!GAS_API_URL) { showToast('⚠️ 尚未設定 GAS API 網址，請先部署後端'); return; }
+
+  const allPhotos = [...photos.pre, ...photos.traffic, ...photos.process];
+  const fd = {
+    action:'submit', project, workDate:date,
+    reportType: document.getElementById('f-type').value,
+    gps:   document.getElementById('f-gps').value,
+    equipment: document.getElementById('f-equip').value,
+    personnel: document.getElementById('f-person').value,
+    startTime: document.getElementById('f-start').value,
+    endTime:   document.getElementById('f-end').value,
+    rest:   document.getElementById('f-rest').checked ? '有' : '無',
+    description: desc, photos: allPhotos,
+  };
+
+  showOverlay(true);
+  document.getElementById('btn-submit').disabled = true;
+  try {
+    // 不帶 Content-Type 以避免 CORS Preflight
+    const res  = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(fd) });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('✅ 通報提交成功！已發送 LINE 審核通知');
+      photos.pre=[]; photos.traffic=[]; photos.process=[];
+      ['prev-pre','prev-traffic','prev-process'].forEach(id => document.getElementById(id).innerHTML='');
+      document.getElementById('f-desc').value='';
+      document.getElementById('f-gps').value='';
+    } else {
+      showToast('❌ ' + (data.msg || '提交失敗，請重試'));
+    }
+  } catch (e) {
+    showToast('❌ 網路錯誤：' + e.message);
+  } finally {
+    showOverlay(false);
+    document.getElementById('btn-submit').disabled = false;
+  }
+}
+window.submitReport = submitReport;
+
+// ── 通報記錄查詢（從 Google Sheets 公開 CSV）──
+async function loadRecs() {
+  const project = document.getElementById('rec-proj').value.trim();
+  if (!project) { showToast('⚠️ 請輸入專案名稱'); return; }
+
+  document.getElementById('rec-err').style.display   = 'none';
+  document.getElementById('rec-stats').style.display = 'none';
+  document.getElementById('rec-list').innerHTML      = '';
+  document.getElementById('rec-loading').style.display = '';
+
+  try {
+    // 直接從公開試算表讀取（需設「任何人可檢視」）
+    const url  = `https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(project)}`;
+    const res  = await fetch(url);
+    const text = await res.text();
+
+    if (text.trim().startsWith('<')) throw new Error('試算表未設為公開，或找不到此專案工作表');
+
+    const rows = parseCSV(text).slice(1).filter(r => r.length >= 15 && r[0]);
+    if (!rows.length) throw new Error('此專案目前尚無通報記錄');
+
+    renderRecs(rows);
+  } catch (e) {
+    document.getElementById('rec-err').style.display = '';
+    document.getElementById('rec-err').innerHTML =
+      `⚠️ ${e.message}<br><small>設定步驟：試算表 → 共用 → 一般存取 → 知道連結的任何人 → 檢視者</small>`;
+  } finally {
+    document.getElementById('rec-loading').style.display = 'none';
+  }
+}
+window.loadRecs = loadRecs;
+
+function parseCSV(text) {
+  return text.trim().split('\n').map(line => {
+    const cols=[]; let cur='', inQ=false;
+    for (const c of line) {
+      if (c==='"') { inQ=!inQ; continue; }
+      if (c===',' && !inQ) { cols.push(cur.trim()); cur=''; continue; }
+      cur+=c;
+    }
+    cols.push(cur.trim()); return cols;
+  });
+}
+
+function renderRecs(rows) {
+  const approved = rows.filter(r=>(r[14]||'').includes('核准')).length;
+  const pending  = rows.filter(r=>(r[14]||'').includes('待審')).length;
+  const rejected = rows.filter(r=>(r[14]||'').includes('退回')).length;
+
+  document.getElementById('rec-stats').style.display = '';
+  document.getElementById('rec-stats').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-c" style="background:#ecfdf5"><div class="sn" style="color:#057a55">${approved}</div><div class="sl" style="color:#065f46">已核准</div></div>
+      <div class="stat-c" style="background:#fef3c7"><div class="sn" style="color:#b45309">${pending}</div><div class="sl" style="color:#92400e">待審核</div></div>
+      <div class="stat-c" style="background:#fef2f2"><div class="sn" style="color:#c81e1e">${rejected}</div><div class="sl" style="color:#991b1b">已退回</div></div>
+    </div>`;
+
+  document.getElementById('rec-list').innerHTML = [...rows].reverse().map(r => {
+    const status    = r[14] || '待審核';
+    const cls       = status.includes('核准') ? 'approve' : status.includes('退回') ? 'reject' : 'pending';
+    const badgeCls  = status.includes('核准') ? 'b-approve' : status.includes('退回') ? 'b-reject' : 'b-pending';
+    const gps       = r[4] || '';
+    const gpsHtml   = gps ? `<a href="https://maps.google.com/?q=${encodeURIComponent(gps)}" target="_blank">📍 查看施工地點</a> &ensp;` : '';
+    const approver  = r[16] || '';
+    const approveAt = (r[15] || '').slice(0, 10);
+    const appHtml   = approver ? `<br>審核：${approver}　${approveAt}` : '';
+    return `
+      <div class="rec-card ${cls}">
+        <div class="rch">
+          <div>
+            <div class="rch-title">📅 ${r[1]||r[0]||'—'}　${r[3]||'—'}</div>
+            <div class="rch-sub">打卡：${(r[0]||'—').slice(0,16)}</div>
+          </div>
+          <span class="badge ${badgeCls}">${status}</span>
+        </div>
+        <div class="rcb">
+          <div class="rc-info">
+            👷 人員：<strong>${r[6]||'—'}</strong><br>
+            🔧 機具：<strong>${r[5]||'—'}</strong><br>
+            ⏰ 時間：<strong>${r[7]||'—'} ～ ${r[8]||'—'}</strong>（午休：${r[9]||'—'}）<br>
+            📝 工作：<strong>${r[10]||'未填寫'}</strong>${appHtml}
+          </div>
+          <div style="margin-top:8px;font-size:13px">
+            ${gpsHtml}<a href="https://drive.google.com/drive/folders/1ZOc-n7tccXb7ACcGXmMNLV_rIAfxckRO" target="_blank">📁 查看施工照片</a>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── 全域工具 ─────────────────────────────────
+function showOverlay(v) { document.getElementById('overlay').style.display = v ? 'flex' : 'none'; }
+let _tt;
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
