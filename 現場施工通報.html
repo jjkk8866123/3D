@@ -610,6 +610,7 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
             <select id="d3-dtype">
               <option value="rect">矩形溝</option>
               <option value="utype">U 型溝</option>
+              <option value="trap">梯形溝</option>
             </select>
           </div>
           <div class="d3-sec">尺寸 (m)</div>
@@ -741,6 +742,7 @@ const vp = document.getElementById('d3-vp');
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 vp.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -751,14 +753,19 @@ camera.position.set(12, 9, 18);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 0.5; controls.maxDistance = 200;
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 const sun = new THREE.DirectionalLight(0xfff8f0, 0.9);
 sun.position.set(15, 25, 10); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 200;
 sun.shadow.camera.left = -50; sun.shadow.camera.right = 50;
 sun.shadow.camera.top = 50;   sun.shadow.camera.bottom = -50;
 scene.add(sun);
+const fillLight = new THREE.DirectionalLight(0xc7d4ff, 0.3);
+fillLight.position.set(-10, 5, -10);
+scene.add(fillLight);
 scene.add(new THREE.GridHelper(100, 100, 0x1f2d3d, 0x1a2535));
 scene.add(new THREE.AxesHelper(3));
 
@@ -806,13 +813,27 @@ function buildRoad() {
 
 function buildDitch() {
   const bW=gv('d3-dbw'),H=gv('d3-dH'),L=gv('d3-dL'),wall=gv('d3-dwall'),c1=gs('d3-dc1');
+  const dtype=gs('d3-dtype');
   const oW=bW+2*wall, oH=H+wall;
-  const sh=new THREE.Shape(); sh.moveTo(-oW/2,0); sh.lineTo(oW/2,0); sh.lineTo(oW/2,oH); sh.lineTo(-oW/2,oH); sh.closePath();
-  const hole=new THREE.Path(); hole.moveTo(-bW/2,wall); hole.lineTo(bW/2,wall); hole.lineTo(bW/2,oH); hole.lineTo(-bW/2,oH); hole.closePath();
-  sh.holes.push(hole);
+  const sh=new THREE.Shape();
+  if (dtype==='trap') {
+    // 梯形溝：上寬下窄，坡比 1:0.5
+    const slope=H*0.5;
+    const botW=bW, topW=bW+2*slope;
+    const oTopW=topW+2*wall, oBotW=botW+2*wall;
+    sh.moveTo(-oTopW/2,0); sh.lineTo(oTopW/2,0); sh.lineTo(oBotW/2+slope,oH); sh.lineTo(-oBotW/2-slope,oH); sh.closePath();
+    const hole=new THREE.Path();
+    hole.moveTo(-topW/2,wall); hole.lineTo(topW/2,wall); hole.lineTo(botW/2,oH); hole.lineTo(-botW/2,oH); hole.closePath();
+    sh.holes.push(hole);
+    setLeg([{c:c1,n:'溝體（梯形混凝土）'}]);
+  } else {
+    sh.moveTo(-oW/2,0); sh.lineTo(oW/2,0); sh.lineTo(oW/2,oH); sh.lineTo(-oW/2,oH); sh.closePath();
+    const hole=new THREE.Path(); hole.moveTo(-bW/2,wall); hole.lineTo(bW/2,wall); hole.lineTo(bW/2,oH); hole.lineTo(-bW/2,oH); hole.closePath();
+    sh.holes.push(hole);
+    setLeg([{c:c1,n:dtype==='utype'?'溝體（U型混凝土）':'溝體（混凝土）'}]);
+  }
   const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
   const m=new THREE.Mesh(g,mt(c1,.85)); m.position.set(0,0,-L/2); grp.add(m); eg(g,m);
-  setLeg([{c:c1,n:'溝體（混凝土）'}]);
   cam(0,oH/2,0,Math.max(oW*2,L));
 }
 
