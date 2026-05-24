@@ -317,15 +317,26 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
 .d3-vb:hover{border-color:#60a5fa;color:#60a5fa}
 
 /* ════════════════════════════════════════
+   快選晶片（機具 / 人員）
+════════════════════════════════════════ */
+.quick-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.qchip{padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);
+  background:var(--card2);color:var(--sub);font-size:13px;cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
+.qchip:hover,.qchip:active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ════════════════════════════════════════
    Tab 3 — 通報記錄
 ════════════════════════════════════════ */
 .rec-bar{display:flex;gap:8px;margin-bottom:12px}
-.rec-bar input{
+.rec-bar select{
   flex:1;padding:11px 13px;border:1.5px solid var(--border);
   border-radius:10px;font-size:15px;background:var(--card);color:var(--text);
-  transition:border-color .15s,background .25s,color .25s;
+  transition:border-color .15s,background .25s,color .25s;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%2364748b' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;
 }
-.rec-bar input:focus{outline:none;border-color:var(--accent)}
+.rec-bar select:focus{outline:none;border-color:var(--accent)}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
 .stat-c{border-radius:12px;padding:12px 8px;text-align:center;
   border:1px solid transparent;transition:all .25s}
@@ -504,11 +515,31 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
         <div class="card-body">
           <div class="fg">
             <label>施工機具清單</label>
-            <textarea id="f-equip" placeholder="例：怪手 1 台、壓路機 1 台" rows="3"></textarea>
+            <div class="quick-chips" id="equip-chips">
+              <span class="qchip" onclick="addChip('f-equip','怪手')">怪手</span>
+              <span class="qchip" onclick="addChip('f-equip','鏟土機')">鏟土機</span>
+              <span class="qchip" onclick="addChip('f-equip','3.5T卡車')">3.5T卡車</span>
+              <span class="qchip" onclick="addChip('f-equip','13.5T卡車')">13.5T卡車</span>
+              <span class="qchip" onclick="addChip('f-equip','17T卡車')">17T卡車</span>
+              <span class="qchip" onclick="addChip('f-equip','板車')">板車</span>
+              <span class="qchip" onclick="addChip('f-equip','水車')">水車</span>
+              <span class="qchip" onclick="addChip('f-equip','發電機')">發電機</span>
+              <span class="qchip" onclick="addChip('f-equip','切割機')">切割機</span>
+              <span class="qchip" onclick="addChip('f-equip','鐵板')">鐵板</span>
+              <span class="qchip" onclick="addChip('f-equip','蹦蹦跳')">蹦蹦跳</span>
+              <span class="qchip" onclick="addChip('f-equip','混凝土')">混凝土</span>
+            </div>
+            <textarea id="f-equip" placeholder="點上方晶片快選，或直接輸入（例：怪手 1 台、壓路機 1 台）" rows="3"></textarea>
           </div>
           <div class="fg">
             <label>施工人員清單</label>
-            <textarea id="f-person" placeholder="例：王小明（主任）、陳大偉（工班長）" rows="3"></textarea>
+            <div class="quick-chips" id="person-chips">
+              <span class="qchip" onclick="addChip('f-person','台灣菁英工')">台灣菁英工</span>
+              <span class="qchip" onclick="addChip('f-person','越南大軍')">越南大軍</span>
+              <span class="qchip" onclick="addChip('f-person','義交')">義交</span>
+              <span class="qchip" onclick="addChip('f-person','怪手司機')">怪手司機</span>
+            </div>
+            <textarea id="f-person" placeholder="點上方晶片快選，或直接輸入（例：台灣菁英工 3 人）" rows="3"></textarea>
           </div>
           <div class="row2">
             <div class="fg">
@@ -702,7 +733,9 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
         設為「任何人可檢視」才能讀取。
       </div>
       <div class="rec-bar">
-        <input type="text" id="rec-proj" placeholder="輸入專案名稱…" onkeydown="if(event.key==='Enter')loadRecs()">
+        <select id="rec-proj">
+          <option value="">— 請選擇專案 —</option>
+        </select>
         <button class="btn btn-primary btn-sm" onclick="loadRecs()">查詢</button>
       </div>
       <div id="rec-loading" style="display:none;text-align:center;padding:30px;color:var(--sub)">
@@ -902,6 +935,23 @@ window._d3Resize = () => setTimeout(onResize, 50);
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbz5h3zJzjIqrukFpELsgqkXyO_qOuwFNQ2n1XxqvfIVt6l8yAusC9YDZaSBabc9-PuCog/exec';
 const SHEETS_ID   = '1TvftRdCuEoxVlOilusFbdC4jx3vh5iPnNWFjos6nBVQ';
 
+// ── 備用清單（無 Kintone 時自動啟用）─────────────
+const PROJECT_LIST_FALLBACK = [
+  '大陸工程','上溢永溢','傑翰','新屋海客',
+  '114坑五','114公六','114桃區公設','113桃機維護',
+  '桃機貨一貨四','114蘆竹北區','114高速',
+  '桃園國際機場聯外道路整建工程(第一標)',
+  '其他工程','115平鎮公設','115高速',
+  '115機場維護','115蘆竹北區','115桃公設'
+];
+const EQUIPMENT_LIST = [
+  '怪手','鏟土機','3.5T卡車','13.5T卡車','17T卡車',
+  '板車','水車','發電機','切割機','鐵板','蹦蹦跳','混凝土'
+];
+const PERSONNEL_LIST = [
+  '台灣菁英工','越南大軍','義交','怪手司機'
+];
+
 // ── 主題切換 ─────────────────────────────────
 const THEME_CLASSES = ['', 't2', 't3', 't4'];
 let _curTheme = 0;
@@ -986,25 +1036,36 @@ window.d3Type=d3Type; window.d3Sw=d3Sw;
 window.d3PaveChange=d3PaveChange; window.d3SwMat=d3SwMat;
 
 // ── 載入專案清單 ─────────────────────────────
+function _fillProjectSelects(list) {
+  const opts = '<option value="">— 請選擇專案 —</option>' +
+    list.map(p => `<option value="${p}">${p}</option>`).join('');
+  document.getElementById('f-project').innerHTML = opts;
+  document.getElementById('rec-proj').innerHTML  = '<option value="">— 請選擇專案 —</option>' +
+    list.map(p => `<option value="${p}">${p}</option>`).join('');
+}
 async function loadProjects() {
   try {
     const res  = await fetch(GAS_API_URL + '?action=projects');
     const data = await res.json();
-    const sel  = document.getElementById('f-project');
     if (data.ok && data.data.length) {
-      sel.innerHTML = '<option value="">— 請選擇專案 —</option>' +
-        data.data.map(p => `<option value="${p}">${p}</option>`).join('');
+      _fillProjectSelects(data.data);
     } else {
-      loadProjectsFallback();
+      _fillProjectSelects(PROJECT_LIST_FALLBACK);
     }
   } catch (e) {
-    loadProjectsFallback();
+    _fillProjectSelects(PROJECT_LIST_FALLBACK);
   }
 }
 function loadProjectsFallback() {
-  const container = document.getElementById('f-project').parentElement;
-  container.innerHTML = '<label>專案名稱</label>' +
-    '<input type="text" id="f-project" placeholder="直接輸入專案名稱…">';
+  _fillProjectSelects(PROJECT_LIST_FALLBACK);
+}
+
+// ── 機具 / 人員晶片快選 ──────────────────────
+function addChip(fieldId, value) {
+  const ta = document.getElementById(fieldId);
+  const cur = ta.value.trim();
+  ta.value = cur ? cur + '、' + value : value;
+  ta.focus();
 }
 
 // ── 行政區+路名 → 自動帶入施工地點 ────────────
@@ -1111,7 +1172,7 @@ window.submitReport = submitReport;
 // ── 通報記錄查詢（從 Google Sheets 公開 CSV）──
 async function loadRecs() {
   const project = document.getElementById('rec-proj').value.trim();
-  if (!project) { showToast('⚠️ 請輸入專案名稱'); return; }
+  if (!project) { showToast('⚠️ 請選擇專案'); return; }
 
   document.getElementById('rec-err').style.display   = 'none';
   document.getElementById('rec-stats').style.display = 'none';
