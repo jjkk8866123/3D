@@ -1121,14 +1121,46 @@ function updateLocation() {
 }
 window.updateLocation = updateLocation;
 
-// ── GPS 定位 ─────────────────────────────────
+// ── GPS 定位（含反向地理編碼→路名）────────────
 function doGPS() {
   if (!navigator.geolocation) { showToast('瀏覽器不支援 GPS'); return; }
   showToast('定位中…');
+  const gpsBtn = document.querySelector('[onclick="doGPS()"]');
+
   navigator.geolocation.getCurrentPosition(
-    p => {
-      document.getElementById('f-gps').value = `${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`;
-      showToast('✅ 定位成功');
+    async p => {
+      const lat = p.coords.latitude;
+      const lng = p.coords.longitude;
+
+      try {
+        // Nominatim 反向地理編碼（免費，不需 API Key）
+        const res  = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=zh-TW`,
+          { headers: { 'User-Agent': 'ConstructionReport/1.0' } }
+        );
+        const data = await res.json();
+        const a    = data.address || {};
+
+        // 組合：縣市 + 鄉鎮市區/里 + 路名
+        const parts = [
+          a.city || a.county,
+          a.suburb || a.town || a.village || a.neighbourhood || a.hamlet,
+          a.road   || a.pedestrian || a.path || a.footway
+        ].filter(Boolean);
+
+        const addrStr = parts.join('') || `${lat.toFixed(6)},${lng.toFixed(6)}`;
+
+        document.getElementById('f-gps').value = addrStr;
+        if (gpsBtn) gpsBtn.textContent = '📍 ' + addrStr;
+        showToast('✅ ' + addrStr);
+
+      } catch (err) {
+        // 反向編碼失敗時退回純座標
+        const coord = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+        document.getElementById('f-gps').value = coord;
+        if (gpsBtn) gpsBtn.textContent = '📍 定位成功';
+        showToast('✅ 定位成功（座標）');
+      }
     },
     e => showToast('❌ 定位失敗：' + (e.message || '請允許位置存取'))
   );
