@@ -315,6 +315,23 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
 .d3-vb{padding:5px 10px;background:rgba(31,41,55,.85);border:1px solid #374151;
   color:#9ca3af;font-size:11px;border-radius:4px;cursor:pointer;font-family:inherit}
 .d3-vb:hover{border-color:#60a5fa;color:#60a5fa}
+/* 材料體積 / 概估 */
+.d3-vol-panel{margin-top:8px;background:#111827;border:1px solid #374151;border-radius:6px;padding:9px}
+.d3-vol-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;color:#d1d5db}
+.d3-vol-row span:last-child{font-weight:600;color:#93c5fd}
+.d3-vol-row.area-row span:last-child{color:#fbbf24}
+.d3-vol-total{border-top:1px solid #374151;margin-top:5px;padding-top:5px;font-size:11px;font-weight:700;color:#60a5fa;display:flex;justify-content:space-between}
+.d3-cost-val{margin-top:7px;padding:6px;background:#064e3b;border-radius:4px;font-size:12px;font-weight:700;color:#10b981;text-align:center}
+/* 複合斷面 */
+.d3-comp-item{background:#0f172a;border:1px solid #374151;border-radius:5px;padding:8px;margin-bottom:6px}
+.d3-comp-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.d3-comp-hdr span{font-size:11px;font-weight:700;color:#fbbf24}
+.d3-comp-hdr button{font-size:10px;background:#374151;border:none;color:#9ca3af;border-radius:3px;padding:2px 7px;cursor:pointer;font-family:inherit}
+.d3-comp-hdr button:hover{background:#4b5563;color:#f87171}
+.d3-comp-add{display:flex;gap:5px;margin:8px 0}
+.d3-comp-add button{flex:1;padding:5px 2px;font-size:11px;background:#1f2937;border:1px dashed #4b5563;border-radius:4px;color:#9ca3af;cursor:pointer;font-family:inherit;transition:all .15s}
+.d3-comp-add button:hover{border-color:#60a5fa;color:#60a5fa}
+.d3-comp-empty{font-size:11px;color:#4b5563;text-align:center;padding:10px 0}
 
 /* ════════════════════════════════════════
    動態機具 / 人員列
@@ -634,9 +651,10 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
       <div id="d3-side">
         <h2>工程 3D 模擬</h2>
         <div class="d3-type">
-          <button class="d3-tbtn active" id="d3t-road"     onclick="d3Type('road')">道路</button>
-          <button class="d3-tbtn"        id="d3t-ditch"    onclick="d3Type('ditch')">水溝</button>
-          <button class="d3-tbtn"        id="d3t-sidewalk" onclick="d3Type('sidewalk')">人行道</button>
+          <button class="d3-tbtn active" id="d3t-road"      onclick="d3Type('road')">道路</button>
+          <button class="d3-tbtn"        id="d3t-ditch"     onclick="d3Type('ditch')">水溝</button>
+          <button class="d3-tbtn"        id="d3t-sidewalk"  onclick="d3Type('sidewalk')">人行道</button>
+          <button class="d3-tbtn"        id="d3t-composite" onclick="d3Type('composite')">複合</button>
         </div>
 
         <!-- 道路 -->
@@ -717,11 +735,39 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
           <div class="d3-cr"><div class="d3-sw" id="dsw-s3" style="background:#6b7280"></div><span>路基</span><input type="color" id="d3-swc3" value="#6b7280" oninput="d3Sw('dsw-s3',this.value)"></div>
         </div>
 
+        <!-- 複合斷面 -->
+        <div id="d3p-composite" style="display:none">
+          <div class="d3-sec">統一長度 (m)</div>
+          <div class="d3-fg"><label>長度 L</label><input type="number" id="d3c-L" value="10" min="1" step="1"></div>
+          <div class="d3-sec">斷面組成</div>
+          <div id="d3c-list"><div class="d3-comp-empty">尚未加入元件</div></div>
+          <div class="d3-comp-add">
+            <button onclick="d3CompAdd('road')">＋道路</button>
+            <button onclick="d3CompAdd('ditch')">＋水溝</button>
+            <button onclick="d3CompAdd('sidewalk')">＋人行道</button>
+          </div>
+          <div style="font-size:10px;color:#4b5563;margin-bottom:4px">元件由左→右排列，可依序加入</div>
+        </div>
+
         <button class="d3-gen" onclick="d3Gen()">▶ 產生 3D 模型</button>
         <div class="d3-row2">
           <button onclick="d3Clear()">重置</button>
           <button onclick="d3Export()">匯出 PNG</button>
         </div>
+
+        <!-- 材料體積 / 概估經費 -->
+        <div id="d3-vol" style="display:none">
+          <div class="d3-sec">材料數量 / 概估</div>
+          <div class="d3-vol-panel">
+            <div id="d3-vol-items"></div>
+            <div class="d3-fg" style="margin-top:8px">
+              <label>概估單價（元 / m²）</label>
+              <input type="number" id="d3-uprice" value="2500" min="0" step="100" oninput="d3CalcCost()">
+            </div>
+            <div id="d3-cost-val" class="d3-cost-val" style="display:none"></div>
+          </div>
+        </div>
+
         <div style="font-size:10px;color:#4b5563;text-align:center;margin-top:8px">
           左鍵旋轉　右鍵平移　滾輪縮放
         </div>
@@ -915,12 +961,83 @@ function buildSidewalk() {
   cam(0,(t3+t2+t1+sH)/2,0,Math.max(W,L));
 }
 
+function buildComposite() {
+  const L   = parseFloat(document.getElementById('d3c-L')?.value) || 10;
+  const items = window._d3CompItems || [];
+  if (!items.length) return;
+
+  const widths = items.map(it => {
+    if (it.type==='road')     return it.W;
+    if (it.type==='ditch')    return it.bW + 2*it.wall;
+    if (it.type==='sidewalk') return it.W;
+    return 0;
+  });
+  const totalW = widths.reduce((a,b)=>a+b,0);
+  let curX = -totalW/2;
+  const legItems = [];
+
+  items.forEach((it, idx) => {
+    const w  = widths[idx];
+    const cx = curX + w/2;
+    curX += w;
+
+    if (it.type==='road') {
+      const {W,t1,t2,t3,crown,c1,c2,c3} = it;
+      const ch=(W/2)*(crown/100);
+      [new THREE.BoxGeometry(W,t3,L),new THREE.BoxGeometry(W,t2,L)].forEach((g,i)=>{
+        const m=new THREE.Mesh(g,mt(i?c2:c3,.9));
+        m.position.set(cx,i?(t3+t2/2):(t3/2),0); m.castShadow=true; grp.add(m); eg(g,m);
+      });
+      [[-W/2,0,0,ch,0,ch-t1,-W/2,-t1],[0,ch,W/2,0,W/2,-t1,0,ch-t1]].forEach(pts=>{
+        const sh=new THREE.Shape([new THREE.Vector2(pts[0],pts[1]),new THREE.Vector2(pts[2],pts[3]),new THREE.Vector2(pts[4],pts[5]),new THREE.Vector2(pts[6],pts[7])]);
+        const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
+        const m=new THREE.Mesh(g,mt(c1,.7));
+        m.position.set(cx,t3+t2,-L/2); m.castShadow=true; grp.add(m); eg(g,m);
+      });
+      legItems.push({c:c1,n:'道路面層'},{c:c2,n:'底層（級配）'},{c:c3,n:'路基'});
+
+    } else if (it.type==='ditch') {
+      const {bW,H,wall,c1} = it;
+      const oW=bW+2*wall, oH=H+wall;
+      const sh=new THREE.Shape();
+      sh.moveTo(-oW/2,0); sh.lineTo(oW/2,0); sh.lineTo(oW/2,oH); sh.lineTo(-oW/2,oH); sh.closePath();
+      const hole=new THREE.Path();
+      hole.moveTo(-bW/2,wall); hole.lineTo(bW/2,wall); hole.lineTo(bW/2,oH); hole.lineTo(-bW/2,oH); hole.closePath();
+      sh.holes.push(hole);
+      const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
+      const m=new THREE.Mesh(g,mt(c1,.85));
+      m.position.set(cx,0,-L/2); grp.add(m); eg(g,m);
+      legItems.push({c:c1,n:'水溝（混凝土）'});
+
+    } else if (it.type==='sidewalk') {
+      const {W,t1,t2,t3,slope,c1,c2,c3} = it;
+      const sH=W*(slope/100);
+      [new THREE.BoxGeometry(W,t3,L),new THREE.BoxGeometry(W,t2,L)].forEach((g,i)=>{
+        const m=new THREE.Mesh(g,mt(i?c2:c3,.9));
+        m.position.set(cx,i?(t3+t2/2):(t3/2),0); grp.add(m); eg(g,m);
+      });
+      const sh=new THREE.Shape([new THREE.Vector2(-W/2,sH),new THREE.Vector2(W/2,0),new THREE.Vector2(W/2,-t1),new THREE.Vector2(-W/2,sH-t1)]);
+      const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
+      const m=new THREE.Mesh(g,mt(c1,.8));
+      m.position.set(cx,t3+t2,-L/2); grp.add(m); eg(g,m);
+      legItems.push({c:c1,n:'人行道面層'},{c:c2,n:'底層'},{c:c3,n:'路基'});
+    }
+  });
+
+  // 去重圖例
+  const seen=new Set();
+  setLeg(legItems.filter(i=>{ if(seen.has(i.n)) return false; seen.add(i.n); return true; }));
+  cam(0,0.5,0,Math.max(totalW,L));
+}
+
 window.d3Gen = function() {
   grp.clear();
   const t = document.querySelector('.d3-tbtn.active')?.id.replace('d3t-','');
-  if (t==='road')     buildRoad();
-  else if (t==='ditch')    buildDitch();
-  else if (t==='sidewalk') buildSidewalk();
+  if      (t==='road')      buildRoad();
+  else if (t==='ditch')     buildDitch();
+  else if (t==='sidewalk')  buildSidewalk();
+  else if (t==='composite') buildComposite();
+  window.d3UpdateVol?.();
 };
 window.d3View = function(v) {
   const t=controls.target.clone(), d=camera.position.distanceTo(t);
@@ -1025,10 +1142,12 @@ window.switchTab = switchTab;
 
 // ── 3D 控制 ─────────────────────────────────
 function d3Type(t) {
-  ['road','ditch','sidewalk'].forEach(k => {
+  ['road','ditch','sidewalk','composite'].forEach(k => {
     document.getElementById('d3p-'+k).style.display = k===t ? '' : 'none';
     document.getElementById('d3t-'+k).classList.toggle('active', k===t);
   });
+  // 切換時隱藏體積面板
+  document.getElementById('d3-vol').style.display = 'none';
 }
 function d3Sw(id,v) { const el=document.getElementById(id); if(el) el.style.background=v; }
 function d3PaveChange() {
@@ -1054,6 +1173,159 @@ function d3SwMat() {
 }
 window.d3Type=d3Type; window.d3Sw=d3Sw;
 window.d3PaveChange=d3PaveChange; window.d3SwMat=d3SwMat;
+
+// ── 材料體積 / 概估經費 ──────────────────────
+let _lastVolData = null;
+
+function _gv(id){ return parseFloat(document.getElementById(id)?.value)||0; }
+function _gs(id){ return document.getElementById(id)?.value||''; }
+
+function calcVolume() {
+  const t = document.querySelector('.d3-tbtn.active')?.id.replace('d3t-','');
+  if (t==='road') {
+    const W=_gv('d3-rW'),L=_gv('d3-rL'),t1=_gv('d3-rt1'),t2=_gv('d3-rt2'),t3=_gv('d3-rt3');
+    const area=W*L;
+    const pave=_gs('d3-pave');
+    return { area, layers:[
+      {n: pave==='rigid'?'面版（混凝土）':'面層（瀝青）', v:area*t1},
+      {n:'底層（級配）',v:area*t2},
+      {n:'路基',v:area*t3},
+    ]};
+  }
+  if (t==='ditch') {
+    const bW=_gv('d3-dbw'),H=_gv('d3-dH'),L=_gv('d3-dL'),wall=_gv('d3-dwall');
+    const dtype=_gs('d3-dtype');
+    let vol;
+    if (dtype==='trap') {
+      const slope=H*0.5, topW=bW+2*slope;
+      const outerA=(topW+2*wall+bW+2*wall)/2*H+(bW+2*wall)*wall;
+      const innerA=(topW+bW)/2*H;
+      vol=(outerA-innerA)*L;
+    } else {
+      vol=((bW+2*wall)*(H+wall)-bW*H)*L;
+    }
+    return { area:null, length:L, layers:[{n:'混凝土溝體',v:vol}] };
+  }
+  if (t==='sidewalk') {
+    const W=_gv('d3-swW'),L=_gv('d3-swL'),t1=_gv('d3-swt1'),t2=_gv('d3-swt2'),t3=_gv('d3-swt3');
+    const area=W*L;
+    return { area, layers:[
+      {n:'面層',v:area*t1},{n:'底層',v:area*t2},{n:'路基',v:area*t3},
+    ]};
+  }
+  if (t==='composite') {
+    const L=_gv('d3c-L')||10;
+    const items=window._d3CompItems||[];
+    const allLayers=[]; let totalArea=0;
+    items.forEach(it => {
+      if (it.type==='road') {
+        const a=it.W*L; totalArea+=a;
+        allLayers.push({n:'道路面層',v:a*it.t1},{n:'道路底層',v:a*it.t2},{n:'道路路基',v:a*it.t3});
+      } else if (it.type==='ditch') {
+        const oW=it.bW+2*it.wall, oH=it.H+it.wall;
+        allLayers.push({n:'水溝混凝土',v:(oW*oH-it.bW*it.H)*L});
+      } else if (it.type==='sidewalk') {
+        const a=it.W*L; totalArea+=a;
+        allLayers.push({n:'人行道面層',v:a*it.t1},{n:'人行道底層',v:a*it.t2},{n:'人行道路基',v:a*it.t3});
+      }
+    });
+    return { area:totalArea||null, layers:allLayers };
+  }
+  return null;
+}
+
+window.d3UpdateVol = function() {
+  const data = calcVolume();
+  if (!data) return;
+  _lastVolData = data;
+  const volDiv  = document.getElementById('d3-vol');
+  const itemsDiv= document.getElementById('d3-vol-items');
+  let html='';
+  if (data.area) html+=`<div class="d3-vol-row area-row"><span>施工面積</span><span>${data.area.toFixed(2)} m²</span></div>`;
+  if (data.length) html+=`<div class="d3-vol-row"><span>施工長度</span><span>${data.length.toFixed(1)} m</span></div>`;
+  let totalVol=0;
+  data.layers.forEach(l => {
+    html+=`<div class="d3-vol-row"><span>${l.n}</span><span>${l.v.toFixed(3)} m³</span></div>`;
+    totalVol+=l.v;
+  });
+  html+=`<div class="d3-vol-total"><span>合計體積</span><span>${totalVol.toFixed(3)} m³</span></div>`;
+  itemsDiv.innerHTML=html;
+  volDiv.style.display='';
+  d3CalcCost();
+};
+
+function d3CalcCost() {
+  const el=document.getElementById('d3-cost-val');
+  if (!_lastVolData?.area) { el.style.display='none'; return; }
+  const up=parseFloat(document.getElementById('d3-uprice')?.value)||0;
+  const cost=_lastVolData.area*up;
+  el.style.display='';
+  el.textContent=`概估金額：${cost.toLocaleString('zh-TW')} 元`;
+}
+window.d3CalcCost=d3CalcCost;
+
+// ── 複合斷面管理 ─────────────────────────────
+window._d3CompItems=[];
+let _d3CompId=0;
+
+function d3CompAdd(type) {
+  const id=_d3CompId++;
+  const defaults={
+    road:     {W:7, t1:0.05,t2:0.15,t3:0.30,crown:2, c1:'#2d2d2d',c2:'#7c5a1e',c3:'#6b7280'},
+    ditch:    {bW:0.6,H:0.5,wall:0.1,             c1:'#9ca3af'},
+    sidewalk: {W:2.0,t1:0.06,t2:0.15,t3:0.20,slope:2,c1:'#e57373',c2:'#78634a',c3:'#6b7280'},
+  };
+  window._d3CompItems.push({id,type,...defaults[type]});
+  d3CompRender();
+}
+function d3CompRemove(id) {
+  window._d3CompItems=window._d3CompItems.filter(i=>i.id!==id);
+  d3CompRender();
+}
+function d3CompUpdate(id,key,val) {
+  const it=window._d3CompItems.find(i=>i.id===id); if(it) it[key]=val;
+}
+function d3CompRender() {
+  const list=document.getElementById('d3c-list');
+  if (!window._d3CompItems.length) {
+    list.innerHTML='<div class="d3-comp-empty">尚未加入元件</div>'; return;
+  }
+  const LABEL={road:'🛣 道路',ditch:'🌊 水溝',sidewalk:'🚶 人行道'};
+  list.innerHTML=window._d3CompItems.map(it=>{
+    let p='';
+    if (it.type==='road') p=`
+      <div class="d3-g2">
+        <div class="d3-fg"><label>路面寬W(m)</label><input type="number" value="${it.W}" step="0.5" min="1" onchange="d3CompUpdate(${it.id},'W',+this.value)"></div>
+        <div class="d3-fg"><label>橫坡(%)</label><input type="number" value="${it.crown}" step="0.5" min="0" max="5" onchange="d3CompUpdate(${it.id},'crown',+this.value)"></div>
+      </div>
+      <div class="d3-g3">
+        <div class="d3-fg"><label>面層(m)</label><input type="number" value="${it.t1}" step="0.01" min="0.01" onchange="d3CompUpdate(${it.id},'t1',+this.value)"></div>
+        <div class="d3-fg"><label>底層(m)</label><input type="number" value="${it.t2}" step="0.01" min="0.01" onchange="d3CompUpdate(${it.id},'t2',+this.value)"></div>
+        <div class="d3-fg"><label>路基(m)</label><input type="number" value="${it.t3}" step="0.01" min="0.01" onchange="d3CompUpdate(${it.id},'t3',+this.value)"></div>
+      </div>`;
+    else if (it.type==='ditch') p=`
+      <div class="d3-g2">
+        <div class="d3-fg"><label>內寬B(m)</label><input type="number" value="${it.bW}" step="0.05" min="0.1" onchange="d3CompUpdate(${it.id},'bW',+this.value)"></div>
+        <div class="d3-fg"><label>深度H(m)</label><input type="number" value="${it.H}" step="0.05" min="0.1" onchange="d3CompUpdate(${it.id},'H',+this.value)"></div>
+      </div>
+      <div class="d3-fg"><label>壁厚t(m)</label><input type="number" value="${it.wall}" step="0.01" min="0.05" onchange="d3CompUpdate(${it.id},'wall',+this.value)"></div>`;
+    else if (it.type==='sidewalk') p=`
+      <div class="d3-g2">
+        <div class="d3-fg"><label>寬度W(m)</label><input type="number" value="${it.W}" step="0.5" min="1" onchange="d3CompUpdate(${it.id},'W',+this.value)"></div>
+        <div class="d3-fg"><label>橫坡(%)</label><input type="number" value="${it.slope}" step="0.5" min="1" max="5" onchange="d3CompUpdate(${it.id},'slope',+this.value)"></div>
+      </div>
+      <div class="d3-g3">
+        <div class="d3-fg"><label>面層(m)</label><input type="number" value="${it.t1}" step="0.01" min="0.01" onchange="d3CompUpdate(${it.id},'t1',+this.value)"></div>
+        <div class="d3-fg"><label>底層(m)</label><input type="number" value="${it.t2}" step="0.01" min="0.01" onchange="d3CompUpdate(${it.id},'t2',+this.value)"></div>
+        <div class="d3-fg"><label>路基(m)</label><input type="number" value="${it.t3}" step="0.01" min="0.01" onchange="d3CompUpdate(${it.id},'t3',+this.value)"></div>
+      </div>`;
+    return `<div class="d3-comp-item">
+      <div class="d3-comp-hdr"><span>${LABEL[it.type]}</span><button onclick="d3CompRemove(${it.id})">✕ 移除</button></div>
+      ${p}
+    </div>`;
+  }).join('');
+}
+window.d3CompAdd=d3CompAdd; window.d3CompRemove=d3CompRemove; window.d3CompUpdate=d3CompUpdate;
 
 // ── 載入專案清單 ─────────────────────────────
 function _fillProjectSelects(list) {
