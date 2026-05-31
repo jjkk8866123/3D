@@ -998,6 +998,11 @@ function buildComposite() {
   const items = window._d3CompItems || [];
   if (!items.length) return;
 
+  // 以第一個道路元件的底層+路基厚度定義「路面基準高」
+  // 水溝頂端 = 路面基準高；人行道面層 = 路面基準高
+  const roadEl   = items.find(i => i.type === 'road');
+  const surfaceY = roadEl ? (roadEl.t3 + roadEl.t2) : 0.45;
+
   const widths = items.map(it => {
     if (it.type==='road')     return it.W;
     if (it.type==='ditch')    return it.bW + 2*it.wall;
@@ -1031,6 +1036,8 @@ function buildComposite() {
     } else if (it.type==='ditch') {
       const {bW,H,wall,c1} = it;
       const oW=bW+2*wall, oH=H+wall;
+      // 水溝向下挖：頂端對齊路面基準高 surfaceY
+      const ditchY = surfaceY - oH;
       const sh=new THREE.Shape();
       sh.moveTo(-oW/2,0); sh.lineTo(oW/2,0); sh.lineTo(oW/2,oH); sh.lineTo(-oW/2,oH); sh.closePath();
       const hole=new THREE.Path();
@@ -1038,20 +1045,22 @@ function buildComposite() {
       sh.holes.push(hole);
       const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
       const m=new THREE.Mesh(g,mt(c1,.85));
-      m.position.set(cx,0,-L/2); grp.add(m); eg(g,m);
+      m.position.set(cx, ditchY, -L/2); grp.add(m); eg(g,m);
       legItems.push({c:c1,n:'水溝（混凝土）'});
 
     } else if (it.type==='sidewalk') {
       const {W,t1,t2,t3,slope,c1,c2,c3} = it;
       const sH=W*(slope/100);
+      // 人行道面層對齊路面基準高，各層往下堆疊
+      const swOff = surfaceY - t3 - t2;
       [new THREE.BoxGeometry(W,t3,L),new THREE.BoxGeometry(W,t2,L)].forEach((g,i)=>{
         const m=new THREE.Mesh(g,mt(i?c2:c3,.9));
-        m.position.set(cx,i?(t3+t2/2):(t3/2),0); grp.add(m); eg(g,m);
+        m.position.set(cx, swOff+(i?(t3+t2/2):(t3/2)), 0); grp.add(m); eg(g,m);
       });
       const sh=new THREE.Shape([new THREE.Vector2(-W/2,sH),new THREE.Vector2(W/2,0),new THREE.Vector2(W/2,-t1),new THREE.Vector2(-W/2,sH-t1)]);
       const g=new THREE.ExtrudeGeometry(sh,{depth:L,bevelEnabled:false});
       const m=new THREE.Mesh(g,mt(c1,.8));
-      m.position.set(cx,t3+t2,-L/2); grp.add(m); eg(g,m);
+      m.position.set(cx, swOff+t3+t2, -L/2); grp.add(m); eg(g,m);
       legItems.push({c:c1,n:'人行道面層'},{c:c2,n:'底層'},{c:c3,n:'路基'});
     }
   });
@@ -1453,6 +1462,17 @@ function d3CompAdd(type) {
 function d3CompRemove(id) {
   window._d3CompItems=window._d3CompItems.filter(i=>i.id!==id);
   d3CompRender();
+  // 如果模型已產生，自動重新計算
+  const volPanel = document.getElementById('d3-vol');
+  if (volPanel && volPanel.style.display !== 'none') {
+    if (window._d3CompItems.length > 0) {
+      window.d3Gen?.();   // 重新產生 → 同時更新體積/金額
+    } else {
+      volPanel.style.display = 'none';
+      window.grp?.clear?.();
+      _lastVolData = null;
+    }
+  }
 }
 function d3CompUpdate(id,key,val) {
   const it=window._d3CompItems.find(i=>i.id===id); if(it) it[key]=val;
