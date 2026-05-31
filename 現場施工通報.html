@@ -332,6 +332,24 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
 .d3-comp-add button{flex:1;padding:5px 2px;font-size:11px;background:#1f2937;border:1px dashed #4b5563;border-radius:4px;color:#9ca3af;cursor:pointer;font-family:inherit;transition:all .15s}
 .d3-comp-add button:hover{border-color:#60a5fa;color:#60a5fa}
 .d3-comp-empty{font-size:11px;color:#4b5563;text-align:center;padding:10px 0}
+/* 邊界拖拉新增 */
+#d3-add-btn{position:absolute;top:8px;left:8px;z-index:10;padding:5px 10px;
+  background:rgba(31,41,55,.88);border:1px solid #374151;color:#9ca3af;
+  font-size:11px;border-radius:4px;cursor:pointer;font-family:inherit;transition:all .15s}
+#d3-add-btn.active{background:#1d4ed8;border-color:#3b82f6;color:#fff}
+#d3-add-popup{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:20;background:#1f2937;border:1px solid #4b5563;border-radius:10px;
+  padding:14px 16px;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#d3-add-popup h4{font-size:11px;color:#60a5fa;font-weight:700;margin-bottom:6px}
+#d3-add-popup .d3-add-w{font-size:11px;color:#fbbf24;margin-bottom:10px}
+.d3-add-types{display:flex;gap:6px;margin-bottom:8px}
+.d3-add-types button{flex:1;padding:8px 4px;font-size:12px;font-weight:700;
+  border:none;border-radius:5px;cursor:pointer;font-family:inherit}
+.d3-add-cancel{width:100%;padding:5px;font-size:11px;background:#374151;
+  border:none;color:#9ca3af;border-radius:4px;cursor:pointer;font-family:inherit}
+.d3-add-hint{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);
+  background:rgba(31,41,55,.9);border:1px solid #374151;border-radius:6px;
+  padding:6px 12px;font-size:11px;color:#9ca3af;white-space:nowrap;pointer-events:none;z-index:10}
 
 /* ════════════════════════════════════════
    動態機具 / 人員列
@@ -773,12 +791,26 @@ body.t2 .nav-badge{background:rgba(0,0,0,.08);color:var(--sub)}
         </div>
       </div>
       <div id="d3-vp">
+        <!-- 邊界拖拉新增 -->
+      <button id="d3-add-btn" onclick="d3ToggleAddMode()">✏️ 拉邊界新增</button>
+      <div id="d3-add-popup">
+        <h4>選擇要新增的元件</h4>
+        <div class="d3-add-w" id="d3-add-w-label"></div>
+        <div class="d3-add-types">
+          <button onclick="d3ConfirmAdd('road')"     style="background:#2563eb;color:#fff">🛣 道路</button>
+          <button onclick="d3ConfirmAdd('ditch')"    style="background:#0891b2;color:#fff">🌊 水溝</button>
+          <button onclick="d3ConfirmAdd('sidewalk')" style="background:#059669;color:#fff">🚶 人行道</button>
+        </div>
+        <button class="d3-add-cancel" onclick="d3CancelAdd()">取消</button>
+      </div>
+      <div id="d3-add-vbtns">
         <div id="d3-vbtns">
           <button class="d3-vb" onclick="d3View('iso')">等角</button>
           <button class="d3-vb" onclick="d3View('top')">俯視</button>
           <button class="d3-vb" onclick="d3View('front')">正視</button>
           <button class="d3-vb" onclick="d3View('side')">側視</button>
         </div>
+      </div>
         <div id="d3-leg">
           <h4>圖例</h4>
           <div id="d3-leg-items"><span style="font-size:11px;color:#6b7280">尚未產生</span></div>
@@ -1028,16 +1060,30 @@ function buildComposite() {
   const seen=new Set();
   setLeg(legItems.filter(i=>{ if(seen.has(i.n)) return false; seen.add(i.n); return true; }));
   cam(0,0.5,0,Math.max(totalW,L));
+  // 儲存邊界供互動新增使用
+  window._d3CurrentL = L;
+  window._d3ElemBounds = [];
+  let bx2 = -totalW/2;
+  items.forEach((it,idx) => { const w=widths[idx]; window._d3ElemBounds.push({type:it.type,minX:bx2,maxX:bx2+w,L}); bx2+=w; });
+}
+
+function _saveSingleBounds(type) {
+  let minX,maxX,L;
+  if(type==='road'){const W=gv('d3-rW');L=gv('d3-rL');minX=-W/2;maxX=W/2;}
+  else if(type==='ditch'){const oW=gv('d3-dbw')+2*gv('d3-dwall');L=gv('d3-dL');minX=-oW/2;maxX=oW/2;}
+  else if(type==='sidewalk'){const W=gv('d3-swW');L=gv('d3-swL');minX=-W/2;maxX=W/2;}
+  window._d3CurrentL=L; window._d3ElemBounds=[{type,minX,maxX,L}];
 }
 
 window.d3Gen = function() {
   grp.clear();
   const t = document.querySelector('.d3-tbtn.active')?.id.replace('d3t-','');
-  if      (t==='road')      buildRoad();
-  else if (t==='ditch')     buildDitch();
-  else if (t==='sidewalk')  buildSidewalk();
+  if      (t==='road')      { buildRoad();      _saveSingleBounds('road'); }
+  else if (t==='ditch')     { buildDitch();     _saveSingleBounds('ditch'); }
+  else if (t==='sidewalk')  { buildSidewalk();  _saveSingleBounds('sidewalk'); }
   else if (t==='composite') buildComposite();
   window.d3UpdateVol?.();
+  _buildHandles();
 };
 window.d3View = function(v) {
   const t=controls.target.clone(), d=camera.position.distanceTo(t);
@@ -1054,10 +1100,136 @@ window.d3Export = function() {
   a.href=renderer.domElement.toDataURL(); a.click();
 };
 window.d3Clear = function() {
-  grp.clear();
+  grp.clear(); _addHandles.forEach(h=>scene.remove(h)); _addHandles=[];
+  window._d3ElemBounds=null;
   document.getElementById('d3-leg-items').innerHTML='<span style="font-size:11px;color:#6b7280">尚未產生</span>';
+  document.getElementById('d3-vol').style.display='none';
 };
 window._d3Resize = () => setTimeout(onResize, 50);
+
+// ═══════════════════════════════════════════
+//  邊界互動新增模式
+// ═══════════════════════════════════════════
+const _groundPl  = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+const _addRC     = new THREE.Raycaster();
+let   _addActive = false;
+let   _anchorX   = null;
+let   _addGhost  = null;
+let   _addHandles= [];
+let   _pendingW  = 0;
+let   _pendingCX = 0;
+
+function _getGP(e) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ndc  = new THREE.Vector2(
+    ((e.clientX-rect.left)/rect.width)*2-1,
+    -((e.clientY-rect.top)/rect.height)*2+1
+  );
+  _addRC.setFromCamera(ndc, camera);
+  const t = new THREE.Vector3();
+  return _addRC.ray.intersectPlane(_groundPl, t) ? t : null;
+}
+
+function _buildHandles() {
+  _addHandles.forEach(h => scene.remove(h));
+  _addHandles = [];
+  const bounds = window._d3ElemBounds;
+  if (!bounds?.length) return;
+  const L = (window._d3CurrentL||10)*0.5;
+  const seen = new Set();
+  bounds.forEach(b => {
+    [b.minX, b.maxX].forEach(x => {
+      if (seen.has(x)) return; seen.add(x);
+      const pts = [new THREE.Vector3(x,0,-L),new THREE.Vector3(x,2.5,-L),new THREE.Vector3(x,2.5,L),new THREE.Vector3(x,0,L)];
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineDashedMaterial({color:0xfbbf24,transparent:true,opacity:_addActive?.8:.0,dashSize:.25,gapSize:.12});
+      const ln  = new THREE.Line(geo, mat);
+      ln.computeLineDistances();
+      ln.userData.bx = x;
+      scene.add(ln);
+      _addHandles.push(ln);
+    });
+  });
+}
+
+function _nearestBound(ptX) {
+  let nearX = null, minD = 1.2;
+  _addHandles.forEach(h => {
+    const d = Math.abs(ptX - h.userData.bx);
+    if (d < minD) { minD = d; nearX = h.userData.bx; }
+  });
+  return nearX;
+}
+
+renderer.domElement.addEventListener('mousedown', e => {
+  if (!_addActive) return;
+  const pt = _getGP(e);
+  if (!pt) return;
+  const nb = _nearestBound(pt.x);
+  _anchorX = nb ?? pt.x;
+  e.stopPropagation();
+  controls.enabled = false;
+}, true);
+
+renderer.domElement.addEventListener('mousemove', e => {
+  if (!_addActive) return;
+  const pt = _getGP(e);
+  if (!pt) return;
+  if (_anchorX !== null) {
+    const L = window._d3CurrentL || 10;
+    const cx = (_anchorX + pt.x) / 2;
+    const w  = Math.abs(pt.x - _anchorX);
+    if (_addGhost) grp.remove(_addGhost);
+    _addGhost = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(w,.05), .45, L),
+      new THREE.MeshStandardMaterial({color:0x3b82f6, transparent:true, opacity:.32, depthWrite:false})
+    );
+    _addGhost.position.set(cx, .22, 0);
+    grp.add(_addGhost);
+    _pendingW  = w;
+    _pendingCX = cx;
+  } else {
+    // 游標提示
+    const nb = _nearestBound(pt.x);
+    renderer.domElement.style.cursor = nb!==null ? 'col-resize' : 'crosshair';
+    _addHandles.forEach(h => {
+      h.material.opacity = h.userData.bx === nb ? 1.0 : .55;
+      h.material.color.setHex(h.userData.bx === nb ? 0xfbbf24 : 0x6b7280);
+    });
+  }
+}, true);
+
+renderer.domElement.addEventListener('mouseup', e => {
+  if (!_addActive || _anchorX === null) return;
+  controls.enabled = true;
+  _anchorX = null;
+  if (_addGhost) { grp.remove(_addGhost); _addGhost = null; }
+  if (_pendingW > 0.1) {
+    // 計算插入位置（以 cx 判斷落在哪個 segment 邊）
+    const bounds = window._d3ElemBounds || [];
+    let insertIdx = bounds.length;
+    for (let i=0; i<bounds.length; i++) {
+      if (_pendingCX <= bounds[i].minX) { insertIdx = i; break; }
+    }
+    window._d3OnBoundaryDrag?.(_pendingW, insertIdx);
+  }
+  _pendingW = 0;
+}, true);
+
+window.d3ToggleAddMode = function() {
+  if (!window._d3ElemBounds?.length) { window.showToast?.('請先產生 3D 模型'); return; }
+  _addActive = !_addActive;
+  controls.enabled = !_addActive;
+  const btn = document.getElementById('d3-add-btn');
+  if (btn) { btn.classList.toggle('active',_addActive); btn.textContent=_addActive?'✕ 結束新增':'✏️ 拉邊界新增'; }
+  renderer.domElement.style.cursor = _addActive ? 'crosshair' : 'default';
+  _addHandles.forEach(h => { h.material.opacity = _addActive ? .6 : .0; });
+  if (_addActive) _buildHandles();
+};
+
+window.d3ExitAddMode = function() {
+  if (_addActive) window.d3ToggleAddMode();
+};
 </script>
 
 <!-- ══════════════════════════════════════════
@@ -1326,6 +1498,45 @@ function d3CompRender() {
   }).join('');
 }
 window.d3CompAdd=d3CompAdd; window.d3CompRemove=d3CompRemove; window.d3CompUpdate=d3CompUpdate;
+
+// ── 邊界拖拉新增回調 ─────────────────────────
+let _bAddW=0, _bAddIdx=0;
+
+window._d3OnBoundaryDrag = function(width, insertIdx) {
+  _bAddW   = width;
+  _bAddIdx = insertIdx;
+  const lbl = document.getElementById('d3-add-w-label');
+  if (lbl) lbl.textContent = `拖拉寬度：${width.toFixed(2)} m`;
+  document.getElementById('d3-add-popup').style.display = 'block';
+};
+
+function d3ConfirmAdd(type) {
+  document.getElementById('d3-add-popup').style.display = 'none';
+  const nextId = window._d3CompItems.length
+    ? Math.max(...window._d3CompItems.map(i=>i.id))+1 : 0;
+  const w = _bAddW || 2;
+  const defs = {
+    road:     {W:Math.max(w,3),  t1:.05,t2:.15,t3:.30,crown:2, c1:'#2d2d2d',c2:'#7c5a1e',c3:'#6b7280'},
+    ditch:    {bW:Math.min(w*.7,.9),H:.5,wall:.1,              c1:'#9ca3af'},
+    sidewalk: {W:Math.max(w,1.5),t1:.06,t2:.15,t3:.20,slope:2, c1:'#e57373',c2:'#78634a',c3:'#6b7280'},
+  };
+  const item = {id:nextId, type, ...defs[type]};
+  const idx  = Math.min(_bAddIdx, window._d3CompItems.length);
+  window._d3CompItems.splice(idx, 0, item);
+  // 切換到複合模式並重新產生
+  d3Type('composite');
+  d3CompRender();
+  window.d3Gen?.();
+  window.d3ExitAddMode?.();
+  showToast(`已新增 ${type==='road'?'道路':type==='ditch'?'水溝':'人行道'} 到第 ${idx+1} 位`);
+}
+
+function d3CancelAdd() {
+  document.getElementById('d3-add-popup').style.display = 'none';
+}
+
+window.d3ConfirmAdd = d3ConfirmAdd;
+window.d3CancelAdd  = d3CancelAdd;
 
 // ── 載入專案清單 ─────────────────────────────
 function _fillProjectSelects(list) {
